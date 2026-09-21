@@ -3,7 +3,6 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph-FF6F00?style=for-the-badge)](https://github.com/langchain-ai/langgraph)
 [![CrewAI](https://img.shields.io/badge/Orchestrator-CrewAI-0052CC?style=for-the-badge)](https://github.com/joaomdmoura/crewAI)
-[![Reversa Spec](https://img.shields.io/badge/Reversa_Spec-95.7%25_Confian%C3%A7a-238636?style=for-the-badge)](./_reversa_sdd/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
 
 > **Sistema autônomo de análise estatística de dados de mercado e finanças**, construído em arquitetura multiagente com suporte a **duplo motor de orquestração (LangGraph e CrewAI)** e camada de **validação cruzada anti-alucinação 100% determinística**.
