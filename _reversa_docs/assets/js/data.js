@@ -1,5 +1,5 @@
 window.RV_DATA = {
-  projectName: "sisanalisefinanceira",
+  projectName: "FinAgent",
   seedShort: "d8b28f80",
   modules: {
     "agentes": { "file_count": 4, "loc": 320, "complexity": "média", "purpose": "Agentes especialistas (Coletor, Analista, Relator)" },
