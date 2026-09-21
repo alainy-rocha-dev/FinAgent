@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Métricas & Estatísticas — sisanalisefinanceira</title>
+    <meta name="reversa-category" content="review">
+    <meta name="reversa-producer-agent" content="reversa-docs-analyst">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --accent-color: #58a6ff;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        header {
+            padding: 15px 25px;
+            background: rgba(22, 27, 34, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .header-title span {
+            color: var(--accent-color);
+        }
+        nav.reversa-doc-nav a {
+            color: var(--text-color);
+            text-decoration: none;
+            margin-left: 15px;
+            font-size: 0.9rem;
+            padding: 5px 10px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        nav.reversa-doc-nav a:hover, nav.reversa-doc-nav a.active {
+            background: var(--border-color);
+            color: var(--accent-color);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h3 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #238636;
+            margin-top: 5px;
+        }
+        .kpi-label {
+            font-size: 0.8rem;
+            color: #8b949e;
+        }
+        #chart-loc, #chart-treemap {
+            height: 340px;
+        }
+    </style>
+    <script src="assets/vendor/highcharts.js"></script>
+    <script src="assets/vendor/highcharts-treemap.js"></script>
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/nav.js"></script>
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            📊 <span>sisanalisefinanceira</span> — Dashboards & Métricas de Código
+        </div>
+        <nav class="reversa-doc-nav"></nav>
+    </header>
+
+    <div class="container">
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">Linhas de Código (LOC)</div>
+                <div class="kpi-value">650</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Arquivos do Módulo</div>
+                <div class="kpi-value">12</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Confiança da Extração</div>
+                <div class="kpi-value">95.7%</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Validação Anti-Alucinação</div>
+                <div class="kpi-value">100%</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>📈 Distribuição de LOC por Módulo</h3>
+                <div id="chart-loc"></div>
+            </div>
+            <div class="card">
+                <h3>🌳 Treemap de Complexidade de Código</h3>
+                <div id="chart-treemap"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        Highcharts.setOptions({
+            chart: { backgroundColor: 'transparent', style: { fontFamily: '-apple-system, sans-serif' } },
+            title: { text: null },
+            credits: { enabled: false },
+            legend: { itemStyle: { color: '#c9d1d9' } }
+        });
+
+        Highcharts.chart('chart-loc', {
+            chart: { type: 'bar' },
+            xAxis: { categories: ['Agentes', 'Orquestradores', 'Núcleo / Schemas', 'Utilitários'], labels: { style: { color: '#c9d1d9' } } },
+            yAxis: { title: { text: 'Linhas de Código (LOC)', style: { color: '#8b949e' } }, labels: { style: { color: '#c9d1d9' } } },
+            series: [{
+                name: 'LOC Estimado',
+                data: [320, 180, 110, 40],
+                color: '#58a6ff'
+            }]
+        });
+
+        Highcharts.chart('chart-treemap', {
+            series: [{
+                type: 'treemap',
+                layoutAlgorithm: 'squarified',
+                data: [
+                    { name: 'Agentes: Relator (report_writer.py)', value: 140, color: '#3fb950' },
+                    { name: 'Agentes: Analista (quant_analyst.py)', value: 139, color: '#58a6ff' },
+                    { name: 'Agentes: Coletor (data_collector.py)', value: 95, color: '#d29922' },
+                    { name: 'Orquestrador: LangGraph', value: 70, color: '#a371f7' },
+                    { name: 'Orquestrador: CrewAI', value: 53, color: '#8957e5' },
+                    { name: 'CLI & Schemas', value: 60, color: '#79c0ff' },
+                    { name: 'Utilitários: Logs', value: 35, color: '#f0883e' }
+                ]
+            }]
+        });
+    </script>
+</body>
+</html>

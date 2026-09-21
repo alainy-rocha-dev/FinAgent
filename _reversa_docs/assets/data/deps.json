@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-09-21T22:07:30Z",
+  "nodes": [
+    { "id": "agents", "label": "agentes", "group": "dominio" },
+    { "id": "orchestrators", "label": "orquestradores", "group": "motor" },
+    { "id": "utils", "label": "utilitarios", "group": "suporte" },
+    { "id": "core", "label": "nucleo/modelos", "group": "dados" }
+  ],
+  "links": [
+    { "source": "orchestrators", "target": "agents", "value": 3 },
+    { "source": "orchestrators", "target": "core", "value": 2 },
+    { "source": "agents", "target": "core", "value": 2 },
+    { "source": "orchestrators", "target": "utils", "value": 1 }
+  ],
+  "cycles": []
+}

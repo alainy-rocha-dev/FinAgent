@@ -1,0 +1,165 @@
+{
+  "generated_at": "2026-09-21T21:25:30Z",
+  "modules": [
+    {
+      "name": "agents",
+      "path": "sisanalisefinanceira/agents",
+      "purpose": "Agentes especialistas (DataCollectorAgent, QuantAnalystAgent, ReportWriterAgent)",
+      "primary_files": [
+        "sisanalisefinanceira/agents/data_collector.py",
+        "sisanalisefinanceira/agents/quant_analyst.py",
+        "sisanalisefinanceira/agents/report_writer.py"
+      ],
+      "functions": [
+        {
+          "name": "fetch_data",
+          "file": "sisanalisefinanceira/agents/data_collector.py",
+          "params": ["symbol: str"],
+          "returns": "MarketDataPayload",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "analyze",
+          "file": "sisanalisefinanceira/agents/quant_analyst.py",
+          "params": ["payload: MarketDataPayload"],
+          "returns": "QuantAnalysisMetrics",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "generate_report",
+          "file": "sisanalisefinanceira/agents/report_writer.py",
+          "params": ["raw_data: MarketDataPayload", "quant_data: QuantAnalysisMetrics"],
+          "returns": "Tuple[str, bool]",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "validate_anti_hallucination",
+          "file": "sisanalisefinanceira/agents/report_writer.py",
+          "params": ["report_text: str", "quant_data: QuantAnalysisMetrics"],
+          "returns": "bool",
+          "confidence": "confirmed"
+        }
+      ],
+      "entities": [
+        {
+          "name": "MarketDataPayload",
+          "fields": [
+            { "name": "symbol", "type": "str", "required": true },
+            { "name": "price_history", "type": "List[float]", "required": true },
+            { "name": "volume", "type": "Optional[List[float]]", "required": false },
+            { "name": "metadata", "type": "Dict[str, Any]", "required": false }
+          ],
+          "confidence": "confirmed"
+        },
+        {
+          "name": "QuantAnalysisMetrics",
+          "fields": [
+            { "name": "symbol", "type": "str", "required": true },
+            { "name": "moving_average", "type": "List[float]", "required": false },
+            { "name": "volatility", "type": "float", "required": false },
+            { "name": "mean_price", "type": "float", "required": false },
+            { "name": "max_price", "type": "float", "required": false },
+            { "name": "min_price", "type": "float", "required": false },
+            { "name": "std_dev", "type": "float", "required": false },
+            { "name": "warnings", "type": "List[str]", "required": false },
+            { "name": "error_code", "type": "Optional[str]", "required": false }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        {
+          "description": "Se a coleta online via API falhar ou use_mock for verdadeiro, é utilizado mock fallback com dataset predefinido",
+          "location": "sisanalisefinanceira/agents/data_collector.py:33-40",
+          "confidence": "confirmed"
+        },
+        {
+          "description": "A validação cruzada anti-alucinação exige que o preço médio e a volatilidade estejam presentes no relatório gerado",
+          "location": "sisanalisefinanceira/agents/report_writer.py:71",
+          "confidence": "confirmed"
+        }
+      ],
+      "dependencies": ["config", "models"],
+      "algorithms": ["Simple Moving Average (Pandas/Math)", "Percentage Volatility (StdDev/Mean*100)"],
+      "complexity": "medium"
+    },
+    {
+      "name": "orchestrators",
+      "path": "sisanalisefinanceira/orchestrators",
+      "purpose": "Motores de orquestração do fluxo multiagente (CrewAI e LangGraph)",
+      "primary_files": [
+        "sisanalisefinanceira/orchestrators/crewai_orchestrator.py",
+        "sisanalisefinanceira/orchestrators/langgraph_orchestrator.py"
+      ],
+      "functions": [
+        {
+          "name": "run",
+          "file": "sisanalisefinanceira/orchestrators/crewai_orchestrator.py",
+          "params": ["symbol: str"],
+          "returns": "AgentState",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "run",
+          "file": "sisanalisefinanceira/orchestrators/langgraph_orchestrator.py",
+          "params": ["symbol: str"],
+          "returns": "AgentState",
+          "confidence": "confirmed"
+        }
+      ],
+      "entities": [
+        {
+          "name": "AgentState",
+          "fields": [
+            { "name": "input_params", "type": "Dict[str, Any]", "required": true },
+            { "name": "raw_data", "type": "Optional[MarketDataPayload]", "required": false },
+            { "name": "quant_analysis", "type": "Optional[QuantAnalysisMetrics]", "required": false },
+            { "name": "final_report", "type": "Optional[str]", "required": false },
+            { "name": "iteration_count", "type": "int", "required": true },
+            { "name": "error_state", "type": "Optional[str]", "required": false }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        {
+          "description": "LangGraph limita a execução a max_iter (default 3); dispara MAX_ITER_REACHED se excedido sem convergência",
+          "location": "sisanalisefinanceira/orchestrators/langgraph_orchestrator.py:65-67",
+          "confidence": "confirmed"
+        }
+      ],
+      "dependencies": ["agents", "config", "models"],
+      "algorithms": ["Loop de Estado Reativo (StateGraph Pattern)", "Sequential Task Chaining"],
+      "complexity": "medium"
+    },
+    {
+      "name": "utils",
+      "path": "sisanalisefinanceira/utils",
+      "purpose": "Utilitários transversais de log e salvaguardas de sistema",
+      "primary_files": [
+        "sisanalisefinanceira/utils/logging.py"
+      ],
+      "functions": [
+        {
+          "name": "setup_logging",
+          "file": "sisanalisefinanceira/utils/logging.py",
+          "params": ["level: str"],
+          "returns": "None",
+          "confidence": "confirmed"
+        },
+        {
+          "name": "handle_max_iter_reached",
+          "file": "sisanalisefinanceira/utils/logging.py",
+          "params": ["symbol: str", "max_iter: int"],
+          "returns": "str",
+          "confidence": "confirmed"
+        }
+      ],
+      "entities": [],
+      "business_rules": [],
+      "dependencies": [],
+      "algorithms": [],
+      "complexity": "low"
+    }
+  ]
+}

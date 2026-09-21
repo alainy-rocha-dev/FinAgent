@@ -1,0 +1,13 @@
+{
+  "schema-version": 1,
+  "feature-dir": "_reversa_forward/001-sistema-multiagentes",
+  "feature-id": "001",
+  "short-name": "sistema-multiagentes",
+  "started-at": "2026-09-21T20:32:45Z",
+  "current-stage": "to-do",
+  "stages-completed": [
+    "requirements",
+    "plan"
+  ],
+  "paused-features": []
+}

@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-09-21T22:07:30Z",
+  "project": "sisanalisefinanceira",
+  "modules": [
+    {
+      "id": "agents",
+      "name": "agents",
+      "path": "sisanalisefinanceira/agents",
+      "file_count": 4,
+      "loc": 320,
+      "language": "Python",
+      "purpose": "Agentes especialistas de coleta, análise e relatórios",
+      "complexity": "medium",
+      "files": [
+        "sisanalisefinanceira/agents/data_collector.py",
+        "sisanalisefinanceira/agents/quant_analyst.py",
+        "sisanalisefinanceira/agents/report_writer.py"
+      ]
+    },
+    {
+      "id": "orchestrators",
+      "name": "orchestrators",
+      "path": "sisanalisefinanceira/orchestrators",
+      "file_count": 3,
+      "loc": 180,
+      "language": "Python",
+      "purpose": "Motores de orquestração (LangGraph e CrewAI)",
+      "complexity": "medium",
+      "files": [
+        "sisanalisefinanceira/orchestrators/crewai_orchestrator.py",
+        "sisanalisefinanceira/orchestrators/langgraph_orchestrator.py"
+      ]
+    },
+    {
+      "id": "utils",
+      "name": "utils",
+      "path": "sisanalisefinanceira/utils",
+      "file_count": 2,
+      "loc": 40,
+      "language": "Python",
+      "purpose": "Utilitários de log e salvaguardas",
+      "complexity": "low",
+      "files": [
+        "sisanalisefinanceira/utils/logging.py"
+      ]
+    },
+    {
+      "id": "core",
+      "name": "core_models",
+      "path": "sisanalisefinanceira",
+      "file_count": 3,
+      "loc": 110,
+      "language": "Python",
+      "purpose": "CLI, configurações globais e schemas Pydantic",
+      "complexity": "low",
+      "files": [
+        "sisanalisefinanceira/cli.py",
+        "sisanalisefinanceira/config.py",
+        "sisanalisefinanceira/models.py"
+      ]
+    }
+  ]
+}

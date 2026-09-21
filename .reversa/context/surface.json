@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-09-21T21:18:00Z",
+  "project_root": "c:\\sisanalisefinanceira",
+  "languages": [
+    { "name": "Python", "extensions": [".py"], "file_count": 10 }
+  ],
+  "primary_language": "Python",
+  "frameworks": [
+    { "name": "Pydantic", "version": "v2", "source": "sisanalisefinanceira/models.py" },
+    { "name": "Pandas", "version": "3.x/2.x", "source": "sisanalisefinanceira/agents/quant_analyst.py" },
+    { "name": "NumPy", "version": "1.x/2.x", "source": "sisanalisefinanceira/agents/quant_analyst.py" },
+    { "name": "SciPy", "version": "1.x", "source": "sisanalisefinanceira/agents/quant_analyst.py" }
+  ],
+  "package_manager": "pip",
+  "entry_points": [
+    { "path": "sisanalisefinanceira/cli.py", "type": "cli_entry" }
+  ],
+  "config_files": [
+    "sisanalisefinanceira/config.py"
+  ],
+  "ci_cd": [],
+  "docker": {},
+  "database_hints": [],
+  "test_framework": "unittest",
+  "test_file_count": 2,
+  "modules": [
+    "agents",
+    "orchestrators",
+    "utils"
+  ],
+  "total_files": 12,
+  "organization_suggestion": {
+    "granularity": "module",
+    "rationale": "A estrutura do módulo python `sisanalisefinanceira` está claramente dividida em módulos por responsabilidade: agents/, orchestrators/, utils/.",
+    "signals": [
+      { "type": "top_level_domain_folders", "evidence": ["sisanalisefinanceira/agents/", "sisanalisefinanceira/orchestrators/", "sisanalisefinanceira/utils/"] }
+    ],
+    "features": []
+  }
+}
