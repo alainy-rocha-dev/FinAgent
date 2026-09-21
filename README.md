@@ -32,14 +32,20 @@ O projeto conta com um **mini-site interativo de documentação visual e arquite
 - 📊 **Painel de Métricas (Highcharts):** Dashboards de distribuição de código e complexidade.
 - 📖 **Glossário de Termos:** Conceitos e termos do ecossistema multiagente.
 
-### 💡 Como abrir a documentação visual:
-Abra o arquivo [`_reversa_docs/index.html`](./_reversa_docs/index.html) diretamente no seu navegador (suporta abertura offline via `file://` sem necessidade de servidor).
+### 💡 Como abrir a documentação visual no navegador:
 
+> ⚠️ **Nota:** Clicar direto no link Markdown dentro do editor IDE abre o *código-fonte* do arquivo. Para ver o mini-site formatado visualmente, abra o arquivo no seu navegador web.
+
+#### No Windows PowerShell / Prompt:
 ```bash
-# No Windows PowerShell:
 start _reversa_docs/index.html
+```
 
-# Ou subindo um servidor HTTP local:
+#### Ou cole no seu navegador web:
+`file:///C:/sisanalisefinanceira/_reversa_docs/index.html`
+
+#### Ou subindo um servidor HTTP local:
+```bash
 python -m http.server 8080 --directory _reversa_docs
 ```
 
