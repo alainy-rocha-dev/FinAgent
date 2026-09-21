@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-09-21T22:04:45Z",
+  "lastCheckpoint": "2026-09-21T22:10:45Z",
+  "pipelineDurationMs": 42000,
+  "completedAgents": ["mapper", "analyst", "storyteller", "publisher"],
+  "pendingAgents": [],
+  "pages": {
+    "index.html": { "status": "created", "agent": "reversa-docs-publisher", "hash": "sha256:d8b28f80" },
+    "arquitetura.html": { "status": "created", "agent": "reversa-docs-mapper", "hash": "sha256:c1110022" },
+    "modulos.html": { "status": "created", "agent": "reversa-docs-mapper", "hash": "sha256:b2220033" },
+    "metricas.html": { "status": "created", "agent": "reversa-docs-analyst", "hash": "sha256:a3330044" },
+    "glossario.html": { "status": "created", "agent": "reversa-docs-storyteller", "hash": "sha256:94440055" },
+    "features/agents.html": { "status": "created", "agent": "reversa-docs-storyteller", "hash": "sha256:85550066" },
+    "features/orchestrators.html": { "status": "created", "agent": "reversa-docs-storyteller", "hash": "sha256:76660077" },
+    "features/utils.html": { "status": "created", "agent": "reversa-docs-storyteller", "hash": "sha256:67770088" }
+  },
+  "pagesGenerated": [
+    "index.html",
+    "arquitetura.html",
+    "modulos.html",
+    "metricas.html",
+    "glossario.html",
+    "features/agents.html",
+    "features/orchestrators.html",
+    "features/utils.html"
+  ],
+  "pagesOmitted": [
+    { "page": "topologia.html", "reason": "topology not detected" },
+    { "page": "timeline.html", "reason": "chronicle not detected" }
+  ],
+  "auxiliaryHtmls": [],
+  "auxiliaryHtmlsDiscovered": 0,
+  "auxiliaryDiscoveryAborted": false,
+  "cdnFallbackUsed": true,
+  "cdnFallbackDetails": [
+    { "lib": "highcharts", "primary": "https://code.highcharts.com", "used": "https://cdn.jsdelivr.net" }
+  ],
+  "vendorMissing": [],
+  "smokeTestFailed": false,
+  "smokeTestErrors": [],
+  "brokenLinks": []
+}
