@@ -66,34 +66,55 @@
         }
         .sidebar-overlay {
             position: absolute;
-            bottom: 25px;
-            right: 25px;
-            background: rgba(22, 27, 34, 0.9);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 18px;
-            width: 300px;
-            backdrop-filter: blur(8px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            bottom: 24px;
+            right: 24px;
+            background: #090d16;
+            border: 2px solid #38bdf8;
+            border-radius: 16px;
+            padding: 24px;
+            width: 440px;
+            max-width: calc(100vw - 48px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.95), 0 0 20px rgba(56, 189, 248, 0.25);
             z-index: 10;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
         }
         .sidebar-overlay h3 {
             margin-top: 0;
-            font-size: 1rem;
-            color: var(--accent-color);
+            margin-bottom: 12px;
+            font-size: 1.45rem;
+            color: #38bdf8;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 0.3px;
+        }
+        .sidebar-overlay p {
+            font-size: 1.1rem !important;
+            line-height: 1.65 !important;
+            color: #f8fafc !important;
+            margin-bottom: 16px;
+            font-weight: 500;
         }
         .metric-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 0.85rem;
+            align-items: center;
+            margin-bottom: 14px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
         }
         .badge {
-            background: #238636;
-            color: #fff;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
+            background: #15803d;
+            color: #ffffff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            box-shadow: 0 2px 8px rgba(21, 128, 61, 0.5);
+            white-space: nowrap;
         }
     </style>
     <script src="assets/vendor/three.min.js"></script>
@@ -113,8 +134,8 @@
 
     <div class="sidebar-overlay">
         <h3>🏛️ Mapeamento 3D de Módulos</h3>
-        <p style="font-size:0.8rem; color:#8b949e;">Cada prédio representa um módulo. A altura indica a quantidade de linhas de código (LOC) e a área representa a quantidade de arquivos.</p>
-        <hr style="border-color:var(--border-color); margin:12px 0;">
+        <p style="font-size:1.05rem; line-height: 1.4; color:#cbd5e1; margin-bottom: 16px;">Cada prédio representa um módulo. A altura indica a quantidade de linhas de código (LOC) e a área representa a quantidade de arquivos.</p>
+        <hr style="border-color:#334155; margin:16px 0;">
         <div class="metric-row">
             <span>Módulo Agents:</span>
             <span class="badge">320 LOC (4 arquivos)</span>
@@ -136,7 +157,7 @@
         scene.fog = new THREE.FogExp2(0x0d1117, 0.015);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(35, 25, 45);
+        camera.position.set(22, 16, 28);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -148,33 +169,62 @@
         controls.dampingFactor = 0.05;
 
         // Iluminação
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0x58a6ff, 1.2);
+        const dirLight = new THREE.DirectionalLight(0x58a6ff, 1.4);
         dirLight.position.set(20, 40, 20);
         dirLight.castShadow = true;
         scene.add(dirLight);
 
-        const pointLight = new THREE.PointLight(0x238636, 1.5, 50);
-        pointLight.position.set(0, 15, 0);
+        const pointLight = new THREE.PointLight(0x238636, 1.8, 60);
+        pointLight.position.set(0, 20, 0);
         scene.add(pointLight);
 
         // Ground Grid
-        const gridHelper = new THREE.GridHelper(80, 40, 0x30363d, 0x161b22);
+        const gridHelper = new THREE.GridHelper(90, 45, 0x38bdf8, 0x1e293b);
         gridHelper.position.y = -0.01;
         scene.add(gridHelper);
 
         // Code City Buildings Data
         const buildings = [
-            { name: "agents/quant_analyst.py", x: -12, z: -8, width: 6, depth: 6, height: 14, color: 0x58a6ff },
-            { name: "agents/report_writer.py", x: -4, z: -8, width: 5, depth: 5, height: 12, color: 0x3fb950 },
-            { name: "agents/data_collector.py", x: 4, z: -8, width: 5, depth: 5, height: 10, color: 0xd29922 },
-            { name: "orchestrators/langgraph.py", x: -10, z: 6, width: 7, depth: 6, height: 11, color: 0xa371f7 },
-            { name: "orchestrators/crewai.py", x: -2, z: 6, width: 5, depth: 5, height: 8, color: 0x8957e5 },
-            { name: "utils/logging.py", x: 8, z: 6, width: 4, depth: 4, height: 5, color: 0xf0883e },
-            { name: "cli.py / config.py", x: 14, z: -4, width: 5, depth: 5, height: 7, color: 0x79c0ff }
+            { name: "agents/quant_analyst.py", x: -14, z: -10, width: 7.5, depth: 7.5, height: 16, color: 0x58a6ff },
+            { name: "agents/report_writer.py", x: -4, z: -10, width: 6.5, depth: 6.5, height: 14, color: 0x3fb950 },
+            { name: "agents/data_collector.py", x: 6, z: -10, width: 6.5, depth: 6.5, height: 12, color: 0xd29922 },
+            { name: "orchestrators/langgraph.py", x: -12, z: 8, width: 8.5, depth: 7.5, height: 13, color: 0xa371f7 },
+            { name: "orchestrators/crewai.py", x: -2, z: 8, width: 6.5, depth: 6.5, height: 10, color: 0x8957e5 },
+            { name: "utils/logging.py", x: 10, z: 8, width: 5.5, depth: 5.5, height: 7, color: 0xf0883e },
+            { name: "cli.py / config.py", x: 16, z: -4, width: 6.5, depth: 6.5, height: 9, color: 0x79c0ff }
         ];
+
+        // Canvas Text Label Creator Function (High-DPI crisp rendering)
+        function createTextSprite(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = 'rgba(9, 13, 22, 0.92)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.roundRect(12, 12, 1000, 232, 28);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 46px "Segoe UI", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 512, 128);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(12, 3, 1);
+            return sprite;
+        }
 
         buildings.forEach(b => {
             const geometry = new THREE.BoxGeometry(b.width, b.height, b.depth);
@@ -192,9 +242,14 @@
 
             // Wireframe overlay for glowing cyber effect
             const edges = new THREE.EdgesGeometry(geometry);
-            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.25, transparent: true }));
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.35, transparent: true }));
             line.position.set(b.x, b.height / 2, b.z);
             scene.add(line);
+
+            // Add 3D Text Label Sprite above building
+            const labelSprite = createTextSprite(b.name);
+            labelSprite.position.set(b.x, b.height + 2.5, b.z);
+            scene.add(labelSprite);
         });
 
         function animate() {

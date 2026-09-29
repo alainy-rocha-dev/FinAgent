@@ -1,52 +1,57 @@
-# 📊 FinAgent — Sistema Multiagentes de Análise Financeira (CrewAI / LangGraph)
+# 📊 FinAgent — Sistema Multiagentes de Análise Financeira
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph-FF6F00?style=for-the-badge)](https://github.com/langchain-ai/langgraph)
-[![CrewAI](https://img.shields.io/badge/Orchestrator-CrewAI-0052CC?style=for-the-badge)](https://github.com/joaomdmoura/crewAI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
 
-> **FinAgent** é um sistema autônomo de análise estatística de dados de mercado e finanças, construído em arquitetura multiagente com suporte a **duplo motor de orquestração (LangGraph e CrewAI)** e camada de **validação cruzada anti-alucinação 100% determinística**.
+> **FinAgent** é um sistema de análise estatística de dados de mercado e finanças em arquitetura multiagente com **pipeline determinístico** (coleta → cálculo → template) e **validação cruzada anti-alucinação numérica** (cálculos 100% determinísticos via Python/Pandas/NumPy).
 
 ---
 
 ## 🌟 Destaques da Arquitetura
 
 1. **🤖 Coletor de Dados (`DataCollectorAgent`):**
-   - Ingestão de cotações históricas via APIs de mercado (Yahoo Finance) com fallback automático para dados simulados (*Mock Fallback*).
+   - Ingestão de cotações históricas via API (Yahoo Finance) com fallback automático para dados simulados (*Mock Fallback*).
+   - **Aviso visível no relatório quando dados simulados são usados** (banner `⚠️ DADOS SIMULADOS`).
+
 2. **📈 Analista Quantitativo (`QuantAnalystAgent`):**
-   - Cálculos estatísticos determinísticos sem risco de alucinação de LLM (Média Móvel, Volatilidade %, Desvio Padrão e Extremos) via `Pandas`, `NumPy` e `SciPy` com fallback transparente para funções nativas Python.
+   - Cálculos estatísticos determinísticos: Média Móvel, Volatilidade %, Desvio Padrão, Extremos.
+   - Implementados com `Pandas`/`NumPy`/`SciPy` com fallback transparente para funções nativas Python (`statistics`, `math`).
+   - **Zero alucinação numérica: todo cálculo é código Python puro, sem LLM**.
+
 3. **✍️ Redator Executivo (`ReportWriterAgent`):**
-   - Síntese de relatórios operacionais em Markdown com camada de auditoria anti-alucinação que exige correspondência numérica biunívoca antes da publicação.
-4. **⚙️ Dupla Orquestração Modulável:**
-   - **LangGraph (StateGraph):** Máquina de estados iterativa com limite estrito de iterações (`max_iter = 3`) e salvaguarda `MAX_ITER_REACHED`.
-   - **CrewAI (Task Chaining):** Encadeamento sequencial linear de contextos de tarefas.
+   - Geração de relatórios em Markdown via **template fixo (não LLM)**.
+   - Camada de auditoria que valida correspondência numérica exata entre métricas calculadas e números no relatório.
+
+4. **⚙️ Dois Padrões de Orquestração (implementados do zero):**
+   - **StateGraph-style:** Máquina de estados iterativa com limite estrito de iterações (`max_iter = 3`) e salvaguarda `MAX_ITER_REACHED`.
+   - **Task Chaining-style:** Encadeamento sequencial linear de contextos de tarefas.
+   - *Nota: não usam as bibliotecas `langgraph` nem `crewai` — são implementações próprias seguindo esses padrões.*
+
+> **Nota sobre "Agentes":** Atualmente o sistema opera como **pipeline determinístico** (coleta → cálculo → template). Não há chamadas a LLM em tempo de execução. A arquitetura prevê slots para LLM (ex: geração de narrativa textual, decisão de alocação) que podem ser ativados futuramente via flags de feature.
 
 ---
 
-## 🌐 Documentação Interativa & Cidade do Código 3D
+## 🌐 Documentação Interativa & Visualizações
 
-O projeto conta com um **mini-site interativo de documentação visual e arquitetura 3D** gerado pelo framework **Reversa**:
+O projeto conta com um **mini-site de documentação visual** gerado pelo framework **Reversa** (`_reversa_docs/`):
 
-- 🌆 **Cidade do Código 3D (Code City em Three.js):** Navegação tridimensional onde a altura dos edifícios representa o LOC e a área representa a densidade de código dos módulos.
-- 🔗 **Grafo de Módulos 2D (D3.js):** Mapeamento dinâmico de dependências e acoplamentos.
-- 📊 **Painel de Métricas (Highcharts):** Dashboards de distribuição de código e complexidade.
-- 📖 **Glossário de Termos:** Conceitos e termos do ecossistema multiagente.
+- 🌆 **Cidade do Código 3D** (`arquitetura.html`): Visualização Three.js onde prédios representam volume de código por módulo
+- 🔗 **Grafo de Módulos 2D** (`modulos.html`): Grafo de força em D3.js com acoplamentos e dependências
+- 📊 **Painel de Métricas** (`metricas.html`): Dashboards Highcharts (treemap LOC, complexidade, sankey, confiança 95.7%)
+- 📖 **Glossário de Termos** (`glossario.html`): Conceitos financeiros, salvaguardas e termos do ecossistema
+- 📜 **Especificações por Feature** (`features/`): Agentes, Orquestradores, Utilitários
 
-### 💡 Como abrir a documentação visual no navegador:
+### 💡 Como abrir a documentação visual:
 
-> ⚠️ **Nota:** Clicar direto no link Markdown dentro do editor IDE abre o *código-fonte* do arquivo. Para ver o mini-site formatado visualmente, abra o arquivo no seu navegador web.
+> ⚠️ **Nota:** Clicar no link Markdown no IDE abre o código-fonte. Para ver o site formatado, abra no navegador.
 
-#### No Windows PowerShell / Prompt:
 ```bash
+# Opção 1: Windows
 start _reversa_docs/index.html
-```
 
-#### Ou cole no seu navegador web:
-`file:///C:/sisanalisefinanceira/_reversa_docs/index.html`
-
-#### Ou subindo um servidor HTTP local:
-```bash
+# Opção 2: Servidor HTTP local (recomendado para JS/CORS)
 python -m http.server 8080 --directory _reversa_docs
+# Abra http://localhost:8080
 ```
 
 ---
@@ -62,30 +67,46 @@ pip install -r requirements.txt
 
 ### 2. Execução via CLI
 
-#### Execução com LangGraph (padrão)
+#### Pipeline StateGraph-style (padrão)
 ```bash
 python -m sisanalisefinanceira.cli --symbol AAPL --engine langgraph
 ```
 
-#### Execução com CrewAI
+#### Pipeline Task Chaining-style
 ```bash
 python -m sisanalisefinanceira.cli --symbol USD/BRL --engine crewai
 ```
 
-#### Execução Online (sem dados mock)
+#### Execução Online (tenta Yahoo Finance, falha se rate-limited)
 ```bash
 python -m sisanalisefinanceira.cli --symbol PETR4 --no-mock
 ```
 
+**Saída esperada (exemplo com mock):**
+```
+SISTEMA MULTIAGENTES DE ANALISE FINANCEIRA
+Simbolo: AAPL | Engine: LANGGRAPH | Mock: True
+
+[LangGraph] Iteração 1/3 iniciada para símbolo: AAPL
+[LangGraph] Relatório final gerado com sucesso e validado anti-alucinação.
+
+RELATORIO FINAL GERADO:
+# 📊 Relatório Executivo de Análise Financeira
+> **Ativo / Símbolo:** `AAPL`
+> **Fonte dos Dados:** `mock_fallback`
+> **⚠️ DADOS SIMULADOS (MOCK FALLBACK)`
+> **Garantia Numérica:** 🟢 Cálculos 100% Determinísticos...
+...
+```
+
 ---
 
-## 🧪 Suíte de Testes Automatizados
-
-Para executar os testes unitários e validar a precisão determinística dos cálculos estatísticos:
+## 🧪 Testes Automatizados
 
 ```bash
-python -m unittest discover tests
+pytest tests/ -v
 ```
+**Resultado atual:** 10/10 testes passando (cobertura: coletor mock, validação quantitativa, edge cases NaN/janelas)
 
 ---
 
@@ -93,22 +114,36 @@ python -m unittest discover tests
 
 ```
 sisanalisefinanceira/
-├── cli.py                     # Interface de linha de comando (CLI)
-├── config.py                  # Parâmetros e configurações globais
+├── cli.py                     # Interface de linha de comando
+├── config.py                  # Configurações globais (max_iter, mock, paths)
 ├── models.py                  # Schemas Pydantic (MarketDataPayload, QuantAnalysisMetrics, AgentState)
 ├── agents/                    # Agentes Especialistas
-│   ├── data_collector.py      # Coleta de dados de mercado (API / Mock Fallback)
-│   ├── quant_analyst.py       # Cálculos quantitativos determinísticos (Pandas/NumPy)
-│   └── report_writer.py       # Geração de Markdown e validação anti-alucinação
-├── orchestrators/             # Motores de Orquestração
-│   ├── crewai_orchestrator.py # Task Chaining estilo CrewAI
-│   └── langgraph_orchestrator.py # StateGraph estilo LangGraph com max_iter
-└── utils/                     # Utilitários
-    └── logging.py             # Logging estruturado e salvaguardas
-_reversa_sdd/                  # Especificações técnicas e SDD da Engenharia Reversa
-_reversa_docs/                 # Mini-site da documentação visual e Code City 3D
-tests/                         # Suíte de testes unitários
+│   ├── data_collector.py      # Coleta API + mock fallback
+│   ├── quant_analyst.py       # Cálculos determinísticos (Pandas/NumPy/Math)
+│   └── report_writer.py       # Template Markdown + validação numérica
+├── orchestrators/             # Padrões de Orquestração
+│   ├── crewai_orchestrator.py # Task Chaining (sequencial)
+│   └── langgraph_orchestrator.py # StateGraph (iterativo c/ max_iter)
+└── utils/                     
+    └── logging.py             # Logging estruturado
+_reversa_sdd/                  # Specs SDD da Engenharia Reversa
+_reversa_docs/                 # Mini-site docs visual (HTML/JS standalone)
+tests/                         # Testes pytest (10 passing)
+reports/                       # Relatórios gerados (.md)
 ```
+
+---
+
+## ⚠️ Limitações Conhecidas (Honestidade para Recrutadores)
+
+| Item | Status | Detalhe |
+|------|--------|---------|
+| **LLM em produção** | ❌ Não implementado | Pipeline 100% determinístico; texto é template fixo |
+| **CrewAI / LangGraph libs** | ❌ Não usadas | Orquestradores são *pattern implementations* próprias |
+| **Dados reais** | ⚠️ Parcial | Yahoo Finance API sujeita a rate limit; mock é default seguro |
+| **Otimização de carteira** | 🧪 Tool presente | `optimize_weights_tool` usa SciPy se disponível, senão equal-weight |
+| **A2A / Human-in-the-loop** | ❌ Não implementado | Arquitetura prevê, mas não codado |
+| **Comparativo LangGraph vs CrewAI** | ❌ Não medido | Dois padrões implementados, mas sem benchmark automatizado |
 
 ---
 

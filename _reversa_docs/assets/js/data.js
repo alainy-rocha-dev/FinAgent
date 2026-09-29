@@ -11,8 +11,8 @@ window.RV_DATA = {
     "nodes": [
       { "id": "agents", "label": "agentes", "group": "dominio" },
       { "id": "orchestrators", "label": "orquestradores", "group": "motor" },
-      { "id": "utils", "label": "utilitarios", "group": "suporte" },
-      { "id": "core", "label": "nucleo/modelos", "group": "dados" }
+      { "id": "utils", "label": "utilitários", "group": "suporte" },
+      { "id": "core", "label": "núcleo/modelos", "group": "dados" }
     ],
     "links": [
       { "source": "orchestrators", "target": "agents", "value": 3 },

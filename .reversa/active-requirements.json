@@ -1,13 +1,21 @@
 {
   "schema-version": 1,
-  "feature-dir": "_reversa_forward/001-sistema-multiagentes",
-  "feature-id": "001",
-  "short-name": "sistema-multiagentes",
-  "started-at": "2026-09-21T20:32:45Z",
-  "current-stage": "to-do",
-  "stages-completed": [
-    "requirements",
-    "plan"
-  ],
-  "paused-features": []
+  "feature-dir": "_reversa_forward/002-melhorias-dod",
+  "feature-id": "002",
+  "short-name": "melhorias-dod",
+  "started-at": "2026-09-29T14:45:00Z",
+  "current-stage": "requirements",
+  "stages-completed": [],
+  "paused-features": [
+    {
+      "feature-dir": "_reversa_forward/001-sistema-multiagentes",
+      "feature-id": "001",
+      "short-name": "sistema-multiagentes",
+      "started-at": "2026-09-21T20:32:45Z",
+      "current-stage": "to-do",
+      "stages-completed": ["requirements", "plan"],
+      "paused-at": "2026-09-29T14:45:00Z",
+      "paused-from-stage": "done"
+    }
+  ]
 }

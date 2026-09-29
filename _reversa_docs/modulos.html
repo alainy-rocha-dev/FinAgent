@@ -64,20 +64,74 @@
             width: 100vw;
             height: 100vh;
         }
+        .sidebar-overlay {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            background: #090d16;
+            border: 2px solid #58a6ff;
+            border-radius: 16px;
+            padding: 20px;
+            width: 390px;
+            max-width: calc(100vw - 48px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.95), 0 0 20px rgba(88, 166, 255, 0.25);
+            z-index: 10;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+        }
+        .sidebar-overlay h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.35rem;
+            color: #58a6ff;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
+        }
+        .sidebar-overlay p {
+            font-size: 1.05rem !important;
+            line-height: 1.55 !important;
+            color: #f8fafc !important;
+            margin-bottom: 14px;
+            font-weight: 500;
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            color: #ffffff;
+        }
         .node circle {
-            stroke: #fff;
-            stroke-width: 2px;
+            stroke: #ffffff;
+            stroke-width: 4px;
             cursor: pointer;
+            filter: drop-shadow(0px 0px 14px rgba(56, 189, 248, 0.8));
         }
         .node text {
-            fill: #c9d1d9;
-            font-size: 12px;
+            fill: #ffffff !important;
+            font-size: 22px !important;
+            font-weight: 800 !important;
             pointer-events: none;
+            text-shadow: 0px 3px 10px #000000, 0px 0px 6px #000000;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
         .link {
-            stroke: #30363d;
-            stroke-opacity: 0.8;
-            stroke-width: 2px;
+            stroke: #38bdf8;
+            stroke-opacity: 0.85;
+            stroke-width: 4px;
         }
     </style>
     <script src="assets/vendor/d3.v7.min.js"></script>
@@ -94,6 +148,24 @@
 
     <div id="graph-container"></div>
 
+    <div class="sidebar-overlay">
+        <h3>🔗 Grafo 2D de Dependências</h3>
+        <p>Cada nó representa um módulo funcional do sistema. As arestas indicam acoplamentos e o direcionamento de chamadas entre os agentes.</p>
+        <hr style="border-color:#334155; margin:16px 0;">
+        <div class="metric-row">
+            <span>Agentes Financeiros:</span>
+            <span class="badge badge-blue">3 Nós de Domínio</span>
+        </div>
+        <div class="metric-row">
+            <span>Orquestradores:</span>
+            <span class="badge badge-purple">2 Motores (Graph/Crew)</span>
+        </div>
+        <div class="metric-row">
+            <span>Utilitários & Core:</span>
+            <span class="badge badge-orange">3 Módulos Suporte</span>
+        </div>
+    </div>
+
     <script>
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -106,9 +178,9 @@
         const data = window.RV_DATA.deps;
 
         const simulation = d3.forceSimulation(data.nodes)
-            .force("link", d3.forceLink(data.links).id(d => d.id).distance(140))
-            .force("charge", d3.forceManyBody().strength(-400))
-            .force("center", d3.forceCenter(width / 2, height / 2));
+            .force("link", d3.forceLink(data.links).id(d => d.id).distance(220))
+            .force("charge", d3.forceManyBody().strength(-900))
+            .force("center", d3.forceCenter(width / 2 - 180, height / 2));
 
         const link = svg.append("g")
             .selectAll("line")
@@ -134,15 +206,21 @@
                 .on("end", dragended));
 
         node.append("circle")
-            .attr("r", 18)
+            .attr("r", 32)
             .attr("fill", d => colorMap[d.group] || "#58a6ff");
 
         node.append("text")
-            .attr("dx", 22)
+            .attr("dx", 38)
             .attr("dy", ".35em")
             .text(d => d.label);
 
         simulation.on("tick", () => {
+            data.nodes.forEach(d => {
+                // Bounds keeping nodes & text labels (38px offset + label width) clear of right sidebar
+                d.x = Math.max(80, Math.min(width - 550, d.x));
+                d.y = Math.max(90, Math.min(height - 90, d.y));
+            });
+
             link
                 .attr("x1", d => d.source.x)
                 .attr("y1", d => d.source.y)

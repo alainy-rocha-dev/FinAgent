@@ -76,17 +76,27 @@ class ReportWriterAgent:
         warnings_lines = [f"- ⚠️ {w}" for w in quant.warnings]
         warnings_str = "\n".join(warnings_lines) if warnings_lines else "Nenhum alerta registrado."
 
+        data_source = raw_data.metadata.get("source", "unknown")
+        is_mock = data_source == "mock_fallback"
+        fallback_reason = raw_data.metadata.get("fallback_reason", "")
+        
+        mock_banner = ""
+        if is_mock:
+            reason_text = f" — Motivo: {fallback_reason}" if fallback_reason else ""
+            mock_banner = f"\n> **⚠️ DADOS SIMULADOS (MOCK FALLBACK)**{reason_text}\n"
+
         report = f"""# 📊 Relatório Executivo de Análise Financeira
 
 > **Ativo / Símbolo:** `{quant.symbol}`  
 > **Data de Emissão:** `{now_str}`  
-> **Selo de Garantia:** 🟢 100% Determinístico (Validação Anti-Alucinação via Python)
+> **Fonte dos Dados:** `{data_source}`{mock_banner}
+> **Garantia Numérica:** 🟢 Cálculos 100% Determinísticos (Python/Pandas/NumPy) — Validação Anti-Alucinação Apenas nos Números
 
 ---
 
 ## 1. Resumo Executivo
 
-A análise quantitativa do ativo `{quant.symbol}` foi realizada com base em `{len(raw_data.price_history)}` pontos de dados coletados. O preço médio registrado no período foi de **`{quant.mean_price}`**, apresentando uma volatilidade de **`{quant.volatility}%`**.
+A análise quantitativa do ativo `{quant.symbol}` foi realizada com base em `{len(raw_data.price_history)}` pontos de dados coletados ({data_source}). O preço médio registrado no período foi de **`{quant.mean_price}`**, apresentando uma volatilidade de **`{quant.volatility}%`**.
 
 ---
 
@@ -114,7 +124,7 @@ A análise quantitativa do ativo `{quant.symbol}` foi realizada com base em `{le
 Com base na volatilidade de `{quant.volatility}%` e no preço médio de `{quant.mean_price}`, o ativo demonstra comportamento dentro dos padrões observados para sua classe. Recomenda-se acompanhamento das médias móveis `{ma_str}` para suporte em decisões de alocação.
 
 ---
-*Relatório gerado automaticamente por Sistema Multiagentes de Análise Financeira.*
+*Relatório gerado automaticamente por Sistema Multiagentes de Análise Financeira. Números validados via validação cruzada anti-alucinação (apenas métricas numéricas). Texto do relatório é template fixo, não gerado por LLM.*
 """
         return report
 

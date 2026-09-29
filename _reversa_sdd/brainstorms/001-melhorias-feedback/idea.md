@@ -1,0 +1,3 @@
+## Ideia original
+
+Melhorar o projeto sisanalisefinanceira baseado no feedback: 1) Tema saturado - diferenciar com contexto brasileiro (NF-e, Banco Central, LGPD) 2) Scraping frágil - melhorar fontes de dados, retry, rate limit 3) Sem avaliação de qualidade - adicionar eval framework para LLM 4) Segurança - prompt injection, vazamento dados, LGPD 5) Demo online - criar demo funcional 6) Custo/latência - adicionar tracking real 7) Verificar fontes citadas

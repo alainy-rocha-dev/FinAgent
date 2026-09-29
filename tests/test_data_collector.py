@@ -2,47 +2,37 @@
 Testes unitários para o DataCollectorAgent e a camada de ingestão de dados / mock fallback.
 """
 
-import unittest
+import pytest
 from sisanalisefinanceira.models import MarketDataPayload
+from sisanalisefinanceira.agents.data_collector import DataCollectorAgent
 
 
-def fetch_market_data_mock(symbol: str) -> MarketDataPayload:
-    if not symbol or not isinstance(symbol, str) or symbol.strip() == "":
-        return MarketDataPayload(
-            symbol=symbol or "UNKNOWN",
-            price_history=[],
-            metadata={"status": "error", "error_code": "INVALID_SYMBOL"}
-        )
-    
-    symbol_upper = symbol.strip().upper()
-    mock_databases = {
-        "AAPL": [150.0, 152.5, 151.0, 153.8, 155.2],
-        "USD/BRL": [5.10, 5.12, 5.15, 5.14, 5.18],
-        "PETR4": [32.0, 32.5, 33.1, 32.8, 33.5]
-    }
-    
-    prices = mock_databases.get(symbol_upper, [100.0, 101.0, 100.5, 102.0, 103.0])
-    
-    return MarketDataPayload(
-        symbol=symbol_upper,
-        price_history=prices,
-        volume=[1000, 1200, 1100, 1300, 1250],
-        metadata={"source": "mock_fallback", "status": "success"}
-    )
+@pytest.fixture
+def collector():
+    return DataCollectorAgent(use_mock=True)
 
 
-class TestDataCollector(unittest.TestCase):
-    def test_mock_fetch_known_symbol(self):
-        payload = fetch_market_data_mock("AAPL")
-        self.assertEqual(payload.symbol, "AAPL")
-        self.assertGreater(len(payload.price_history), 0)
-        self.assertEqual(payload.metadata["status"], "success")
-
-    def test_mock_fetch_invalid_symbol(self):
-        payload = fetch_market_data_mock("")
-        self.assertEqual(payload.metadata["error_code"], "INVALID_SYMBOL")
-        self.assertEqual(len(payload.price_history), 0)
+def test_mock_fetch_known_symbol(collector):
+    payload = collector.fetch_data("AAPL")
+    assert payload.symbol == "AAPL"
+    assert len(payload.price_history) > 0
+    assert payload.metadata["status"] == "success"
+    assert payload.metadata["source"] == "mock_fallback"
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_mock_fetch_invalid_symbol(collector):
+    payload = collector.fetch_data("")
+    assert payload.metadata["error_code"] == "INVALID_SYMBOL"
+    assert len(payload.price_history) == 0
+
+
+def test_mock_fetch_unknown_symbol_uses_default(collector):
+    payload = collector.fetch_data("UNKNOWN_TICKER")
+    assert payload.symbol == "UNKNOWN_TICKER"
+    assert len(payload.price_history) > 0
+    assert payload.metadata["source"] == "mock_fallback"
+
+
+def test_mock_fallback_includes_fallback_reason(collector):
+    payload = collector.fetch_data("AAPL")
+    assert "fallback_reason" not in payload.metadata or payload.metadata.get("fallback_reason") is None
