@@ -1,9 +1,9 @@
 {
   "schema-version": 1,
-  "feature-dir": "_reversa_forward/002-melhorias-dod",
+  "feature-dir": "_reversa_forward/002-finagent-agentpulse",
   "feature-id": "002",
-  "short-name": "melhorias-dod",
-  "started-at": "2026-09-29T14:45:00Z",
+  "short-name": "finagent-agentpulse",
+  "started-at": "2026-09-29T19:03:00Z",
   "current-stage": "requirements",
   "stages-completed": [],
   "paused-features": [
@@ -11,10 +11,16 @@
       "feature-dir": "_reversa_forward/001-sistema-multiagentes",
       "feature-id": "001",
       "short-name": "sistema-multiagentes",
-      "started-at": "2026-09-21T20:32:45Z",
-      "current-stage": "to-do",
-      "stages-completed": ["requirements", "plan"],
-      "paused-at": "2026-09-29T14:45:00Z",
+      "started-at": "2026-09-21T20:25:00Z",
+      "current-stage": "done",
+      "stages-completed": [
+        "requirements",
+        "plan",
+        "to-do",
+        "coding",
+        "sync"
+      ],
+      "paused-at": "2026-09-29T19:03:00Z",
       "paused-from-stage": "done"
     }
   ]

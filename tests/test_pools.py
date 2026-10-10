@@ -90,6 +90,7 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
     import psycopg
     from psycopg_pool import ConnectionPool
     from psycopg import OperationalError
+    from psycopg.errors import TransientError
 
     pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn)
     try:
@@ -106,17 +107,24 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
             cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
         admin_conn.close()
 
-        # Proxima operacao deve falhar e pool deve recuperar
+        # Proxima operacao deve falhar com TransientError e pool deve recuperar
         try:
             conn = pool.getconn()
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
-        except OperationalError:
-            # Segunda tentativa deve funcionar (pool limpou conexao morta)
-            conn = pool.getconn()
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-            assert cur.fetchone()[0] == 1
+        except TransientError:
+            # TransientError indica erro transitorio (conexao morta) - pool deve recuperar
+            pass
+        except OperationalError as e:
+            # Alguns erros operacionais tambem sao transitorios
+            # Verifica se e um erro de conexao
+            assert "connection" in str(e).lower() or "closed" in str(e).lower()
+
+        # Segunda tentativa deve funcionar (pool limpou conexao morta)
+        conn = pool.getconn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        assert cur.fetchone()[0] == 1
     finally:
         pool.close()
 
@@ -327,17 +335,18 @@ def test_pools_created_post_fork_not_on_import():
     # Garante estado limpo
     pools_module.close_worker_pools()
 
-    # Mock da config
+    # Mock da config e das dependencias (PsycopgPool, dict_row, psycopg)
     with patch('src.infra.db.pools.get_config') as mock_get_config, \
-         patch('src.infra.db.pools._get_pool') as mock_get_pool, \
-         patch('src.infra.db.pools._get_dict_row') as mock_get_dict_row, \
-         patch('src.infra.db.pools._get_psycopg') as mock_get_psycopg:
+         patch('src.infra.db.pools.PsycopgPool') as mock_pool_class, \
+         patch('src.infra.db.pools.dict_row', lambda x: x), \
+         patch('src.infra.db.pools.psycopg') as mock_psycopg:
         mock_config = MagicMock()
         mock_config.database_url = "postgresql://test:test@localhost/test"
         mock_get_config.return_value = mock_config
-        mock_get_pool.return_value = MagicMock(return_value=MagicMock())
-        mock_get_dict_row.return_value = lambda x: x
-        mock_get_psycopg.return_value = MagicMock(connect=MagicMock(return_value=MagicMock()))
+
+        mock_pool_instance = MagicMock()
+        mock_pool_class.return_value = mock_pool_instance
+        mock_psycopg.connect.return_value = MagicMock()
 
         # Verifica que variaveis globais estao None antes do init
         assert pools_module._domain_pool is None
@@ -352,9 +361,14 @@ def test_pools_created_post_fork_not_on_import():
         assert pools_module._checkpoint_pool is not None
         assert pools_module._lock_conn is not None
 
+        # Verifica que PsycopgPool foi chamado com os argumentos corretos
+        assert mock_pool_class.call_count == 2
+
         # Tenta inicializar de novo (deve ser idempotente)
         pools_module.init_worker_pools(domain_pool_size=2, checkpoint_pool_size=1)
         assert pools_module._initialized is True
+        # Nao deve criar pools novamente
+        assert mock_pool_class.call_count == 2
 
         pools_module.close_worker_pools()
         assert pools_module._initialized is False
@@ -540,6 +554,31 @@ def test_pool_sizes_respected():
 
     assert len(conns) == 3
     assert mock_pool.getconn.call_count == 3
+
+
+@pytest.mark.unit
+def test_calculate_pool_sizes_formula():
+    """
+    Verifica a fórmula de dimensionamento dos pools.
+    domain_pool_size = num_workers * conexoes_por_worker + margem
+    checkpoint_pool_size = num_workers + 1
+    """
+    from src.infra.db.pools import calculate_pool_sizes
+
+    # Caso padrão: 4 workers, 2 conexões/worker, margem 2
+    domain_size, checkpoint_size = calculate_pool_sizes(num_workers=4)
+    assert domain_size == 10
+    assert checkpoint_size == 5
+
+    # Caso: 1 worker (teste de deadlock)
+    domain_size, checkpoint_size = calculate_pool_sizes(num_workers=1)
+    assert domain_size == 4  # 1*2 + 2
+    assert checkpoint_size == 2  # 1 + 1
+
+    # Caso: 8 workers, 3 conexões/worker, margem 3
+    domain_size, checkpoint_size = calculate_pool_sizes(num_workers=8, conexoes_por_worker=3, margem=3)
+    assert domain_size == 27  # 8*3 + 3
+    assert checkpoint_size == 9  # 8 + 1
 
 
 # ============================================================================

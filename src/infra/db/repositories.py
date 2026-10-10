@@ -1,151 +1,34 @@
 """
-Repositórios injetados no código de domínio (D-01).
+Implementações PostgreSQL dos repositórios de domínio (D-01).
 
+A infraestrutura implementa as interfaces definidas em src.domain.repositories.
 O domínio NÃO cria pools nem importa drivers.
-Recebe repositórios por injeção de dependência.
 """
 
 from __future__ import annotations
 
 import json
 import uuid
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
 
 from psycopg.rows import dict_row
 
+from src.domain.repositories import (
+    DomainConnection,
+    EventsRepo,
+    IdempotencyKeyRecord,
+    IdempotencyRepo,
+    MarketPayloadRecord,
+    MarketRepo,
+    PublishedRecord,
+    PublishedRepo,
+    QuantMetricsRecord,
+    QuantRepo,
+    Repositories,
+    TaskRecord,
+    TasksRepo,
+)
 from src.infra.db.pools import get_domain_connection
-
-# ============================================================================
-# Domain Models (tipos que o domínio conhece)
-# ============================================================================
-
-@dataclass
-class TaskRecord:
-    task_id: uuid.UUID
-    symbol: str
-    asset_class: str
-    status: str
-    execution_id: str
-    graph_version: str
-    acknowledge_simulated: bool
-    created_at: datetime
-    updated_at: datetime
-    approved_at: datetime | None
-    heartbeat_at: datetime | None
-    locked_by: str | None
-    lease_until: datetime | None
-    attempts: int
-    reject_reason: str | None
-    snapshot_hash: bytes | None
-
-
-@dataclass
-class MarketPayloadRecord:
-    task_id: uuid.UUID
-    symbol: str
-    source: str
-    payload_json: dict
-    fetched_at: datetime
-    data_quality: str
-
-
-@dataclass
-class QuantMetricsRecord:
-    task_id: uuid.UUID
-    symbol: str
-    metrics_json: dict
-    metrics_hash: bytes
-    created_at: datetime
-
-
-@dataclass
-class PublishedRecord:
-    task_id: uuid.UUID
-    report_json: dict
-    published_at: datetime
-    published_by: uuid.UUID
-    snapshot_hash: bytes
-
-
-@dataclass
-class IdempotencyKeyRecord:
-    api_key_id: uuid.UUID
-    key: str
-    task_id: uuid.UUID
-    payload_hash: bytes
-    response_status: int
-    response_body: dict
-    created_at: datetime
-
-
-# ============================================================================
-# Repository Interfaces (Protocolos)
-# ============================================================================
-
-class TasksRepo(ABC):
-    @abstractmethod
-    def create(self, task: TaskRecord) -> None: ...
-
-    @abstractmethod
-    def get(self, task_id: uuid.UUID) -> TaskRecord | None: ...
-
-    @abstractmethod
-    def update_status(
-        self,
-        task_id: uuid.UUID,
-        new_status: str,
-        expected_status: str,
-        **extra_fields: object,
-    ) -> bool: ...
-
-    @abstractmethod
-    def update_heartbeat(self, task_id: uuid.UUID, worker_id: str) -> bool: ...
-
-
-class MarketRepo(ABC):
-    @abstractmethod
-    def upsert(self, payload: MarketPayloadRecord) -> bool: ...
-
-    @abstractmethod
-    def get(self, task_id: uuid.UUID, symbol: str, source: str) -> MarketPayloadRecord | None: ...
-
-
-class QuantRepo(ABC):
-    @abstractmethod
-    def upsert(self, metrics: QuantMetricsRecord) -> bool: ...
-
-    @abstractmethod
-    def get(self, task_id: uuid.UUID, symbol: str) -> QuantMetricsRecord | None: ...
-
-
-class PublishedRepo(ABC):
-    @abstractmethod
-    def insert(self, published: PublishedRecord) -> bool: ...
-
-    @abstractmethod
-    def get(self, task_id: uuid.UUID) -> PublishedRecord | None: ...
-
-
-class EventsRepo(ABC):
-    @abstractmethod
-    def append(
-        self,
-        task_id: uuid.UUID,
-        event_type: str,
-        payload: dict,
-        actor_role: str,
-        actor_id: str,
-    ) -> None: ...
-
-
-class IdempotencyRepo(ABC):
-    @abstractmethod
-    def get(self, api_key_id: uuid.UUID, key: str) -> IdempotencyKeyRecord | None: ...
-
-    @abstractmethod
-    def insert(self, record: IdempotencyKeyRecord) -> None: ...
 
 
 # ============================================================================
@@ -154,7 +37,7 @@ class IdempotencyRepo(ABC):
 
 class PgTasksRepo(TasksRepo):
     def create(self, task: TaskRecord) -> None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -187,7 +70,7 @@ class PgTasksRepo(TasksRepo):
                 )
 
     def get(self, task_id: uuid.UUID) -> TaskRecord | None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute("SELECT * FROM tasks WHERE task_id = %s", (task_id,))
                 row = cur.fetchone()
@@ -214,13 +97,13 @@ class PgTasksRepo(TasksRepo):
         params.append(expected_status)
 
         sql = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE task_id = %s AND status = %s"
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, params)
                 return bool(cur.rowcount > 0)
 
     def update_heartbeat(self, task_id: uuid.UUID, worker_id: str) -> bool:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -236,7 +119,7 @@ class PgTasksRepo(TasksRepo):
 class PgMarketRepo(MarketRepo):
     def upsert(self, payload: MarketPayloadRecord) -> bool:
         """ON CONFLICT DO NOTHING garante idempotência por execução."""
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -256,7 +139,7 @@ class PgMarketRepo(MarketRepo):
                 return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID, symbol: str, source: str) -> MarketPayloadRecord | None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     "SELECT * FROM market_payloads WHERE task_id = %s AND symbol = %s AND source = %s",
@@ -278,7 +161,7 @@ class PgMarketRepo(MarketRepo):
 class PgQuantRepo(QuantRepo):
     def upsert(self, metrics: QuantMetricsRecord) -> bool:
         """ON CONFLICT DO NOTHING - métricas persistem para auditoria."""
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -297,7 +180,7 @@ class PgQuantRepo(QuantRepo):
                 return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID, symbol: str) -> QuantMetricsRecord | None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     "SELECT * FROM quant_metrics WHERE task_id = %s AND symbol = %s",
@@ -318,7 +201,7 @@ class PgQuantRepo(QuantRepo):
 class PgPublishedRepo(PublishedRepo):
     def insert(self, published: PublishedRecord) -> bool:
         """UNIQUE task_id garante exactly-once."""
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -336,7 +219,7 @@ class PgPublishedRepo(PublishedRepo):
                 return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID) -> PublishedRecord | None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute("SELECT * FROM published WHERE task_id = %s", (task_id,))
                 row = cur.fetchone()
@@ -360,7 +243,7 @@ class PgEventsRepo(EventsRepo):
         actor_role: str,
         actor_id: str,
     ) -> None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -373,7 +256,7 @@ class PgEventsRepo(EventsRepo):
 
 class PgIdempotencyRepo(IdempotencyRepo):
     def get(self, api_key_id: uuid.UUID, key: str) -> IdempotencyKeyRecord | None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     "SELECT * FROM idempotency_keys WHERE api_key_id = %s AND key = %s",
@@ -393,7 +276,7 @@ class PgIdempotencyRepo(IdempotencyRepo):
                 return None
 
     def insert(self, record: IdempotencyKeyRecord) -> None:
-        with get_domain_connection() as conn:  # type: psycopg.Connection
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -415,16 +298,6 @@ class PgIdempotencyRepo(IdempotencyRepo):
 # ============================================================================
 # Factory para injeção de dependência
 # ============================================================================
-
-@dataclass
-class Repositories:
-    tasks: TasksRepo
-    market: MarketRepo
-    quant: QuantRepo
-    published: PublishedRepo
-    events: EventsRepo
-    idempotency: IdempotencyRepo
-
 
 def create_repositories() -> Repositories:
     """Factory que cria todas as implementações PostgreSQL."""

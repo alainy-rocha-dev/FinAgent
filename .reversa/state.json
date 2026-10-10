@@ -10,16 +10,11 @@
   "forward_folder": "_reversa_forward",
   "newproject_progress": {
     "mode": "guiado",
-    "stage": "done",
-    "started_at": "2026-09-21T20:20:00Z",
-    "last_checkpoint_at": "2026-09-21T20:27:00Z",
-    "completed_stages": [
-      "ideator",
-      "researcher",
-      "drafter",
-      "spec-sdd"
-    ],
-    "brief": "Sistema Multiagentes de Análise Financeira em Python (CrewAI/LangGraph): Agente Scraper (dados de mercado), Agente Analista (modelo estatístico) e Agente Relator (relatório consolidado)."
+    "stage": "spec-sdd",
+    "started_at": "2026-09-29T19:30:00Z",
+    "last_checkpoint_at": "2026-09-29T20:30:00Z",
+    "completed_stages": ["ideator", "researcher", "drafter"],
+    "brief": "Projeto 4: FinAgent + AgentPulse — Mover agentes FinAgent para infra AgentPulse com checkpoints, retry idempotente, aprovação humana, teste de caos, observabilidade, testes de carga."
   },
   "phase": "done",
   "completed": [

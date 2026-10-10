@@ -8,6 +8,20 @@ Separação por papel de processo (D-01, D-02, D-03):
   - checkpoint_pool: autocommit + dict_row (exigido pelo PostgresSaver do LangGraph)
   - lock_conn: conexão dedicada para advisory lock por task_id
 
+Fórmula de dimensionamento (D-04):
+- domain_pool_size = num_workers * conexoes_por_worker + margem
+- checkpoint_pool_size = num_workers + 1
+- lock_conn = 1 (dedicada, não conta no pool)
+
+Exemplo: 4 workers, 2 conexões/worker, margem 2
+- domain_pool_size = 4 * 2 + 2 = 10 (min_size=1, max_size=10)
+- checkpoint_pool_size = 4 + 1 = 5 (min_size=1, max_size=5)
+
+Tamanhos mínimos (para testar ausência de deadlock):
+- domain_pool: min_size=1, max_size calculado pela fórmula
+- checkpoint_pool: min_size=1, max_size calculado pela fórmula
+- lock_conn: 1 conexão dedicada (sempre disponível)
+
 Pools criados em worker_process_init / fechados em worker_process_shutdown (pós-fork).
 NUNCA no import do módulo.
 """
@@ -21,13 +35,10 @@ import threading
 import uuid
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    import psycopg
-    from psycopg_pool import ConnectionPool as PsycopgPool
-
-# async_sessionmaker added in SQLAlchemy 2.0; types stubs may lag
+import psycopg
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool as PsycopgPool
 from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
     AsyncEngine,
     AsyncSession,
@@ -51,19 +62,21 @@ _pool_lock = threading.Lock()
 _initialized = False
 
 
-def _get_psycopg() -> Any:
-    import psycopg
-    return psycopg
+def calculate_pool_sizes(num_workers: int, conexoes_por_worker: int = 2, margem: int = 2) -> tuple[int, int]:
+    """
+    Calcula tamanhos dos pools conforme fórmula documentada.
 
+    Args:
+        num_workers: Número de processos worker (filhos do Celery)
+        conexoes_por_worker: Conexões de domínio por worker (padrão 2)
+        margem: Margem de segurança (padrão 2)
 
-def _get_dict_row() -> Any:
-    from psycopg.rows import dict_row
-    return dict_row
-
-
-def _get_pool() -> Any:
-    from psycopg_pool import ConnectionPool as PsycopgPool
-    return PsycopgPool
+    Returns:
+        Tupla (domain_pool_size, checkpoint_pool_size)
+    """
+    domain_pool_size = num_workers * conexoes_por_worker + margem
+    checkpoint_pool_size = num_workers + 1
+    return domain_pool_size, checkpoint_pool_size
 
 
 def _advisory_lock_keys(task_id: str) -> tuple[int, int]:
@@ -139,10 +152,16 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 def init_worker_pools(
     domain_pool_size: int = 5,
     checkpoint_pool_size: int = 3,
+    pool_timeout: float = 5.0,
 ) -> None:
     """
     Inicializa pools do worker (pós-fork).
     Chamado via sinal worker_process_init do Celery.
+
+    Args:
+        domain_pool_size: Tamanho máximo do pool de domínio
+        checkpoint_pool_size: Tamanho máximo do pool de checkpoint
+        pool_timeout: Timeout em segundos para obter conexão do pool (padrão 5s)
     """
     global _domain_pool, _checkpoint_pool, _lock_conn, _initialized
     with _pool_lock:
@@ -150,16 +169,13 @@ def init_worker_pools(
             return
         dsn = _build_dsn()
 
-        PsycopgPool = _get_pool()
-        dict_row = _get_dict_row()
-        psycopg = _get_psycopg()
-
         # domain_pool: transacional, para machine, market_payloads, published, events
         _domain_pool = PsycopgPool(
             min_size=1,
             max_size=domain_pool_size,
             conninfo=dsn,
-            autocommit=False,
+            timeout=pool_timeout,
+            kwargs={"autocommit": False},
         )
 
         # checkpoint_pool: autocommit + dict_row (exigido pelo PostgresSaver)
@@ -167,8 +183,8 @@ def init_worker_pools(
             min_size=1,
             max_size=checkpoint_pool_size,
             conninfo=dsn,
-            autocommit=True,
-            kwargs={"row_factory": dict_row},
+            timeout=pool_timeout,
+            kwargs={"autocommit": True, "row_factory": dict_row},
         )
 
         # lock_conn: conexão dedicada para advisory lock por task_id
