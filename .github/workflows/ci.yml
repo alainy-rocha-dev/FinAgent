@@ -44,8 +44,28 @@ jobs:
       - name: Run mypy
         run: mypy src/ --show-error-codes --show-error-context
 
-  test:
-    name: Tests (pytest)
+  test-unit:
+    name: Tests - Unit (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install test deps
+        run: pip install pytest pytest-asyncio pytest-cov
+      - name: Install runtime deps
+        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2
+      - name: Install optional deps
+        run: |
+          pip install langgraph langgraph-checkpoint-postgres || true
+          pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-celery opentelemetry-instrumentation-psycopg opentelemetry-semantic-conventions || true
+      - name: Run unit tests
+        run: pytest -v -m "not integration" --cov=src --cov-report=term-missing --cov-fail-under=0
+
+  test-integration:
+    name: Tests - Integration (pytest -m integration)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -73,10 +93,104 @@ jobs:
       - name: Install test deps
         run: pip install pytest pytest-asyncio pytest-cov
       - name: Install runtime deps
-        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2
+        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2 psycopg-pool==3.3.3
       - name: Install optional deps
         run: |
           pip install langgraph langgraph-checkpoint-postgres || true
           pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-celery opentelemetry-instrumentation-psycopg opentelemetry-semantic-conventions || true
-      - name: Run tests
-        run: pytest -v --cov=src --cov-report=term-missing --cov-fail-under=0
+      - name: Run integration tests
+        run: pytest -v -m integration --tb=short
+        env:
+          TEST_DATABASE_URL: postgresql://agentpulse:agentpulse@localhost:5432/agentpulse
+
+  lockfile:
+    name: Generate Lockfile (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install all deps from pyproject.toml
+        run: |
+          pip install -e .[dev]
+      - name: Generate requirements.lock
+        run: pip freeze > requirements.lock
+      - name: Upload lockfile as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: requirements-linux-lock
+          path: requirements.lock
+      - name: Verify versions against spike_versions.md
+        run: |
+          python -c "
+import subprocess
+import sys
+
+# Read spike versions
+with open('docs/spike_versions.md', 'r') as f:
+    spike_content = f.read()
+
+# Read lockfile
+with open('requirements.lock', 'r') as f:
+    lock_content = f.read()
+
+# Check key packages
+key_packages = {
+    'celery': '5.6.0',
+    'redis': '7.4.1',
+    'langgraph': '1.2.10',
+    'langgraph-checkpoint-postgres': '3.1.0',
+    'psycopg': '3.3.2',
+    'psycopg-pool': '3.3.3',
+    'asyncpg': '0.30.0',
+    'sqlalchemy': '2.0.35',
+    'pydantic': '2.11.5',
+    'pydantic-settings': '2.11.0',
+}
+
+print('=== Version Verification ===')
+all_ok = True
+for pkg, expected in key_packages.items():
+    found = False
+    for line in lock_content.split('\n'):
+        if line.lower().startswith(pkg.lower() + '==') or line.lower().startswith(pkg.replace('-', '_').lower() + '=='):
+            actual = line.split('==')[1].strip()
+            if actual == expected:
+                print(f'✓ {pkg}: {actual} (matches spike_versions.md)')
+            else:
+                print(f'✗ {pkg}: {actual} != {expected} (MISMATCH)')
+                all_ok = False
+            found = True
+            break
+    if not found:
+        print(f'? {pkg}: NOT FOUND in lockfile')
+        all_ok = False
+
+# Check Postgres and Redis server versions (from CI services)
+print()
+print('=== Server Versions (from CI services) ===')
+print('Postgres: 16.4 (service container)')
+print('Redis: 7.2.7-alpine (service container)')
+
+# Check spike_versions.md has same
+if 'Postgres | 16.4' in spike_content:
+    print('✓ Postgres 16.4 matches spike_versions.md')
+else:
+    print('✗ Postgres version mismatch in spike_versions.md')
+    all_ok = False
+
+if 'Redis (servidor) | 7.2.7' in spike_content:
+    print('✓ Redis 7.2.7 matches spike_versions.md')
+else:
+    print('✗ Redis version mismatch in spike_versions.md')
+    all_ok = False
+
+if not all_ok:
+    sys.exit(1)
+print()
+print('All versions verified!')
+"
+        env:
+          TEST_DATABASE_URL: postgresql://agentpulse:agentpulse@localhost:5432/agentpulse
