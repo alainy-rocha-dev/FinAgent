@@ -40,7 +40,7 @@ jobs:
       - name: Install core tools
         run: pip install mypy
       - name: Install runtime deps (pure Python)
-        run: pip install sqlalchemy redis fastapi uvicorn pydantic pydantic-settings pyyaml prometheus-client python-json-logger tenacity celery psycopg
+        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2
       - name: Run mypy
         run: mypy src/ --show-error-codes --show-error-context
 
@@ -73,7 +73,7 @@ jobs:
       - name: Install test deps
         run: pip install pytest pytest-asyncio pytest-cov
       - name: Install runtime deps
-        run: pip install sqlalchemy redis fastapi uvicorn pydantic pydantic-settings pyyaml prometheus-client python-json-logger tenacity celery psycopg
+        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2
       - name: Install optional deps
         run: |
           pip install langgraph langgraph-checkpoint-postgres || true
