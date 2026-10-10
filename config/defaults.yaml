@@ -1,0 +1,144 @@
+# AgentPulse Configuration Defaults
+# Data: 2026-10-07
+# Versões do spike registradas (07/10/2026)
+
+app:
+  name: "AgentPulse"
+  env: "development"  # development | test | production
+  log_level: "INFO"
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "agentpulse"
+  user: "agentpulse"
+  password: "agentpulse"
+  # Pool configuration
+  api_pool_size: 5
+  domain_pool_size: 3
+  checkpoint_pool_size: 2
+  lock_connection: true
+  max_connections: 100
+  # Connection validation
+  pool_pre_ping: true
+  pool_recycle: 3600
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: null
+  # Celery broker/result
+  broker_url: "redis://localhost:6379/0"
+  result_backend: "redis://localhost:6379/0"
+
+celery:
+  # Worker configuration
+  worker_prefetch_multiplier: 1
+  task_acks_late: true
+  task_reject_on_worker_lost: true
+  worker_concurrency: 4
+  # Beat scheduler
+  beat_schedule: {}
+  # Task routing
+  task_routes:
+    "infra.tasks.*": {"queue": "default"}
+  # Result expiration
+  result_expires: 3600
+  # Serialization
+  task_serializer: "json"
+  result_serializer: "json"
+  accept_content: ["json"]
+
+langgraph:
+  checkpointer:
+    # PostgresSaver configuration
+    autocommit: true
+    dict_row: true
+    graph_version: "1.0.0"
+    # Checkpoint table
+    checkpoint_table: "langgraph_checkpoints"
+    # Thread safety
+    connection_pool: "checkpoint_pool"
+
+idempotency:
+  # Idempotency key configuration
+  ttl_days: 30
+  scope: "api_key_id"  # api_key_id | global
+  # Conflict handling
+  on_conflict: "return_existing"  # return_existing | error
+
+data_quality:
+  # Stale thresholds per asset class (days)
+  stale_max_age_days:
+    equity: 1
+    crypto: 1
+    forex: 1
+    fixed_income: 7
+    commodity: 7
+    fund: 7
+    index: 1
+    derivative: 1
+  # Quality levels
+  levels: ["FRESH", "STALE", "SIMULATED"]
+  default_level: "FRESH"
+
+budget:
+  # Per-task budget (USD)
+  max_per_task_usd: 10.0
+  # Monthly global budget (USD)
+  max_monthly_usd: 1000.0
+  # LLM model pricing (per 1k tokens)
+  model_pricing:
+    gpt-4o: {input: 5.0, output: 15.0}
+    gpt-4o-mini: {input: 0.15, output: 0.6}
+    claude-3-5-sonnet: {input: 3.0, output: 15.0}
+
+approval:
+  # Approval flow
+  snapshot_ttl_days: 7
+  snapshot_ttl_hours: 168  # 7 days = 168 hours (para granularidade fina)
+  # Reject reasons
+  reject_reasons:
+    - "DATA_QUALITY"
+    - "METHODOLOGY"
+    - "COMPLIANCE"
+    - "OTHER"
+
+observability:
+  # OpenTelemetry
+  otel_enabled: true
+  otel_endpoint: "http://localhost:4317"
+  service_name: "agentpulse"
+  # Prometheus metrics
+  metrics_port: 9090
+  # Grafana
+  grafana_dashboard: "agentpulse"
+
+chaos:
+  # Chaos testing configuration
+  enabled: false
+  failpoints:
+    - "C1_KILL_AFTER_QUANT_CHECKPOINT"
+    - "C2_KILL_BETWEEN_INTERRUPT_RESUME"
+    - "C3_KILL_DURING_PUBLICATION"
+    - "C4_KILL_DURING_APPROVAL"
+    - "C5_NETWORK_PARTITION"
+  # Nightly runs
+  nightly_runs: 100
+
+simulated:
+  # Simulated data publication control
+  allow_simulated_publication: false
+  # In production, this MUST be false
+  block_in_production: true
+
+api:
+  # FastAPI configuration
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  # Rate limiting
+  max_active_tasks_per_key: 10
+  # CORS
+  cors_origins: ["http://localhost:3000"]
