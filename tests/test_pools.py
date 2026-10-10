@@ -90,7 +90,7 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
     from psycopg_pool import ConnectionPool
     from psycopg import OperationalError
 
-    pool = ConnectionPool(min_size=1, max_size=3, dsn=pg_dsn)
+    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn)
     try:
         # Pega uma conexao
         conn = pool.getconn()
