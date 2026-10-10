@@ -135,13 +135,13 @@ class Config:
     def param_count(self) -> int:
         """Conta parâmetros 'a medir' (exclui metadados e secrets)."""
         count = 0
-        for field in fields(self):
-            if field.name in ("database_url", "app_env", "allow_simulated_publication",
-                              "openai_api_key", "anthropic_api_key", "redis_url", "versions"):
+        for f in fields(self):
+            if f.name in ("database_url", "app_env", "allow_simulated_publication",
+                          "openai_api_key", "anthropic_api_key", "redis_url", "versions"):
                 continue
-            if field.name == "stale_max_age_days":
+            if f.name == "stale_max_age_days":
                 count += 4  # equity, fx, crypto, other
-            elif field.name == "rate_limit":
+            elif f.name == "rate_limit":
                 count += 3  # tasks_post, tasks_get, approve_reject
             else:
                 count += 1
