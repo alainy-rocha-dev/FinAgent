@@ -92,9 +92,10 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
     from psycopg import OperationalError, InterfaceError
     from psycopg.errors import AdminShutdown
 
-    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn)
+    # Pool com timeout curto para falhar rapido se conexao morta
+    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=2.0)
     try:
-        # Pega uma conexao
+        # Pega uma conexao e obtem o PID do backend
         conn = pool.getconn()
         with conn.cursor() as cur:
             cur.execute("SELECT pg_backend_pid()")
@@ -107,30 +108,19 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
             cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
         admin_conn.close()
 
-        # Proxima operacao deve falhar com erro de conexao e pool deve recuperar
-        # Tentamos ate 3 vezes para dar tempo do pool limpar a conexao morta
-        for attempt in range(3):
-            try:
-                conn = pool.getconn()
-                with conn.cursor() as cur:
-                    cur.execute("SELECT 1")
-                # Se chegou aqui, funcionou
-                break
-            except (OperationalError, InterfaceError, AdminShutdown) as e:
-                # Erro de conexao transitorio - pool deve recuperar
-                assert "connection" in str(e).lower() or "closed" in str(e).lower() or "terminated" in str(e).lower() or "administrator" in str(e).lower()
-                if attempt == 2:
-                    raise
-                # Pequena pausa antes de tentar novamente
-                import time
-                time.sleep(0.1)
-        else:
-            pytest.fail("Pool nao recuperou apos 3 tentativas")
+        # Aguarda um pouco para o pool detectar a conexao morta
+        import time
+        time.sleep(0.5)
 
-        # Verifica que a conexao funciona
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
-        assert cur.fetchone()[0] == 1
+        # Tenta obter uma conexao nova do pool - deve funcionar apos o pool limpar a morta
+        # O pool deve detectar a conexao morta e criar uma nova
+        conn = pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            assert cur.fetchone()[0] == 1
+        finally:
+            pool.putconn(conn)
     finally:
         pool.close()
 
