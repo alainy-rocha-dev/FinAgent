@@ -97,7 +97,7 @@ class TasksRepo(ABC):
         task_id: uuid.UUID,
         new_status: str,
         expected_status: str,
-        **extra_fields,
+        **extra_fields: object,
     ) -> bool: ...
 
     @abstractmethod
@@ -200,24 +200,24 @@ class PgTasksRepo(TasksRepo):
         task_id: uuid.UUID,
         new_status: str,
         expected_status: str,
-        **extra_fields,
+        **extra_fields: object,
     ) -> bool:
         """Transição atômica: UPDATE ... WHERE status = expected_status."""
         set_clauses = ["status = %s", "updated_at = NOW()"]
-        params = [new_status]
+        params: list[object] = [new_status]
 
         for k, v in extra_fields.items():
             set_clauses.append(f"{k} = %s")
             params.append(v)
 
-        params.append(task_id)
+        params.append(str(task_id))
         params.append(expected_status)
 
         sql = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE task_id = %s AND status = %s"
         with get_domain_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, params)
-                return cur.rowcount > 0
+                return bool(cur.rowcount > 0)
 
     def update_heartbeat(self, task_id: uuid.UUID, worker_id: str) -> bool:
         with get_domain_connection() as conn:
@@ -228,9 +228,9 @@ class PgTasksRepo(TasksRepo):
                     SET heartbeat_at = NOW(), locked_by = %s, lease_until = NOW() + INTERVAL '2 minutes'
                     WHERE task_id = %s AND status IN ('RUNNING', 'AWAITING_APPROVAL')
                     """,
-                    (worker_id, task_id),
+                    (worker_id, str(task_id)),
                 )
-                return cur.rowcount > 0
+                return bool(cur.rowcount > 0)
 
 
 class PgMarketRepo(MarketRepo):
@@ -253,7 +253,7 @@ class PgMarketRepo(MarketRepo):
                         payload.data_quality,
                     ),
                 )
-                return cur.rowcount > 0
+                return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID, symbol: str, source: str) -> MarketPayloadRecord | None:
         with get_domain_connection() as conn:
@@ -294,7 +294,7 @@ class PgQuantRepo(QuantRepo):
                         metrics.created_at,
                     ),
                 )
-                return cur.rowcount > 0
+                return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID, symbol: str) -> QuantMetricsRecord | None:
         with get_domain_connection() as conn:
@@ -333,7 +333,7 @@ class PgPublishedRepo(PublishedRepo):
                         published.snapshot_hash,
                     ),
                 )
-                return cur.rowcount > 0
+                return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID) -> PublishedRecord | None:
         with get_domain_connection() as conn:

@@ -97,7 +97,7 @@ class Config:
     # Versões fixadas (metadados)
     versions: dict = None  # type: ignore
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.versions is None:
             self.versions = {}
 

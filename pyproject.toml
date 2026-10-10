@@ -64,6 +64,9 @@ dev = [
     # Type stubs
     "types-redis==5.0.1.2",
     "types-pyyaml==6.0.12.2",
+    "types-sqlalchemy==1.4.53.38",
+    "types-requests==2.33.0.20261006",
+    "types-urllib3==1.26.25.14",
 ]
 
 [tool.ruff]
@@ -112,18 +115,19 @@ files = ["src"]
 
 [[tool.mypy.overrides]]
 module = [
-    "celery*",
-    "redis*",
-    "langgraph*",
-    "langgraph_checkpoint*",
-    "psycopg*",
-    "sqlalchemy*",
-    "asyncpg*",
-    "fastapi*",
-    "uvicorn*",
-    "pydantic*",
-    "prometheus_client*",
-    "opentelemetry*",
+    "celery.*",
+    "redis.*",
+    "langgraph.*",
+    "langgraph_checkpoint.*",
+    "psycopg.*",
+    "sqlalchemy.*",
+    "asyncpg.*",
+    "fastapi.*",
+    "uvicorn.*",
+    "pydantic.*",
+    "prometheus_client.*",
+    "opentelemetry.*",
+    "yaml",
 ]
 ignore_missing_imports = true
 

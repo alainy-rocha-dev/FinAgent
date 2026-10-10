@@ -17,11 +17,14 @@ from __future__ import annotations
 import atexit
 import logging
 import threading
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, contextmanager
 
 import psycopg
 from psycopg.rows import dict_row
-from sqlalchemy.ext.asyncio import (
+
+# async_sessionmaker added in SQLAlchemy 2.0; types stubs may lag
+from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
@@ -80,7 +83,7 @@ async def close_api_pools() -> None:
 
 
 @asynccontextmanager
-async def get_async_session() -> AsyncSession:
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """Obtém sessão assíncrona para operações da API."""
     if _async_session_factory is None:
         raise RuntimeError("API pools not initialized. Call init_api_pools() first.")
@@ -154,7 +157,7 @@ def close_worker_pools() -> None:
 
 
 @contextmanager
-def get_domain_connection():
+def get_domain_connection() -> psycopg.Connection:
     """Obtém conexão do domain_pool (transacional)."""
     if _domain_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")
@@ -170,7 +173,7 @@ def get_domain_connection():
 
 
 @contextmanager
-def get_checkpoint_connection():
+def get_checkpoint_connection() -> psycopg.Connection:
     """Obtém conexão do checkpoint_pool (autocommit + dict_row)."""
     if _checkpoint_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")
@@ -201,7 +204,8 @@ def acquire_advisory_lock(task_id: str, lock_conn: psycopg.Connection) -> bool:
     lock_key_2 = (hash(task_id) >> 31) & 0x7FFFFFFF
     with lock_conn.cursor() as cur:
         cur.execute("SELECT pg_try_advisory_lock(%s, %s)", (lock_key_1, lock_key_2))
-        return cur.fetchone()[0]
+        result = cur.fetchone()
+        return bool(result[0]) if result else False
 
 
 def release_advisory_lock(task_id: str, lock_conn: psycopg.Connection) -> None:
