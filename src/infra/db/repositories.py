@@ -28,7 +28,6 @@ from src.domain.repositories import (
 )
 from src.infra.db.pools import get_domain_connection
 
-
 # ============================================================================
 # Implementações PostgreSQL
 # ============================================================================
@@ -306,5 +305,4 @@ def create_repositories() -> Repositories:
         published=PgPublishedRepo(),
         events=PgEventsRepo(),
         idempotency=PgIdempotencyRepo(),
-    ) 
- 
+    )

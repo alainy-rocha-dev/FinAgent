@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-
 # ============================================================================
 # Protocolo de conexão abstrato (sem dependência de driver)
 # ============================================================================
