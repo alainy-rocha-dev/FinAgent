@@ -26,7 +26,7 @@ jobs:
       - name: Install ruff
         run: pip install ruff
       - name: Run ruff check
-        run: ruff check .
+        run: ruff check src/
 
   typecheck:
     name: Type Check (mypy)
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16.4
         env:
           POSTGRES_DB: agentpulse
           POSTGRES_USER: agentpulse
@@ -61,7 +61,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:7-alpine
+        image: redis:7.2.7-alpine
         ports: ["6379:6379"]
         options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 5
     steps:
