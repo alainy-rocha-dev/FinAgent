@@ -87,10 +87,10 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
     Requer Postgres real rodando.
     """
     import psycopg
-    from psycopg_pool import SimpleConnectionPool
+    from psycopg_pool import ConnectionPool
     from psycopg import OperationalError
 
-    pool = SimpleConnectionPool(min_size=1, max_size=3, dsn=pg_dsn)
+    pool = ConnectionPool(min_size=1, max_size=3, dsn=pg_dsn)
     try:
         # Pega uma conexao
         conn = pool.getconn()
@@ -117,7 +117,7 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
                 cur.execute("SELECT 1")
             assert cur.fetchone()[0] == 1
     finally:
-        pool.closeall()
+        pool.close()
 
 
 # ============================================================================
@@ -174,7 +174,7 @@ def test_advisory_lock_hash_collision_resistance():
 @pytest.mark.integration
 def test_advisory_lock_two_consumers_same_task(pg_dsn):
     """
-    Dois consumidores tentam adquirir lock do mesmo task_id.
+    Dois consumidores (conexoes diferentes) tentam adquirir lock do mesmo task_id.
     Um ganha (True), outro perde (False).
     Lock deve ser liberado em finally mesmo com excecao.
     """
@@ -182,27 +182,31 @@ def test_advisory_lock_two_consumers_same_task(pg_dsn):
     from src.infra.db.pools import acquire_advisory_lock, release_advisory_lock
 
     task_id = str(uuid.uuid4())
-    lock_conn = psycopg.connect(pg_dsn, autocommit=True)
+    # Consumidor 1: conexao dedicada
+    lock_conn_1 = psycopg.connect(pg_dsn, autocommit=True)
+    # Consumidor 2: conexao diferente (simula outro worker/processo)
+    lock_conn_2 = psycopg.connect(pg_dsn, autocommit=True)
 
     try:
-        # Primeiro consumidor adquire
-        acquired_1 = acquire_advisory_lock(task_id, lock_conn)
-        assert acquired_1 is True
+        # Consumidor 1 adquire
+        acquired_1 = acquire_advisory_lock(task_id, lock_conn_1)
+        assert acquired_1 is True, "Consumidor 1 deve adquirir o lock"
 
-        # Segundo consumidor tenta (deve falhar - try_lock)
-        acquired_2 = acquire_advisory_lock(task_id, lock_conn)
-        assert acquired_2 is False
+        # Consumidor 2 tenta (deve falhar - try_lock em sessao diferente)
+        acquired_2 = acquire_advisory_lock(task_id, lock_conn_2)
+        assert acquired_2 is False, "Consumidor 2 NAO deve adquirir o lock ja detido"
 
-        # Primeiro libera
-        release_advisory_lock(task_id, lock_conn)
+        # Consumidor 1 libera
+        release_advisory_lock(task_id, lock_conn_1)
 
-        # Segundo agora deve conseguir
-        acquired_3 = acquire_advisory_lock(task_id, lock_conn)
-        assert acquired_3 is True
+        # Consumidor 2 agora deve conseguir
+        acquired_3 = acquire_advisory_lock(task_id, lock_conn_2)
+        assert acquired_3 is True, "Consumidor 2 deve adquirir apos liberacao"
 
-        release_advisory_lock(task_id, lock_conn)
+        release_advisory_lock(task_id, lock_conn_2)
     finally:
-        lock_conn.close()
+        lock_conn_1.close()
+        lock_conn_2.close()
 
 
 @pytest.mark.integration
