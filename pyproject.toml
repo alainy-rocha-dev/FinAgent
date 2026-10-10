@@ -126,6 +126,7 @@ module = [
     "fastapi.*",
     "uvicorn.*",
     "pydantic.*",
+    "pydantic_settings.*",
     "prometheus_client.*",
     "opentelemetry.*",
     "yaml",
