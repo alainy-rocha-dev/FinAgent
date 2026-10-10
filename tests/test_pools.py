@@ -90,8 +90,8 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
     import psycopg
     from psycopg_pool import ConnectionPool
 
-    # Cria pool inicial
-    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=5.0)
+    # Cria pool inicial com reconnect_timeout curto para detectar conexoes mortas rapido
+    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=5.0, reconnect_timeout=1.0)
     try:
         # Pega uma conexao e obtem o PID do backend
         conn = pool.getconn()
