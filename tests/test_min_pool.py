@@ -34,6 +34,91 @@ def pg_dsn():
     )
 
 
+@pytest.fixture(scope="function", autouse=True)
+def setup_database(pg_dsn):
+    """Create database schema for integration tests."""
+    import psycopg
+    conn = psycopg.connect(pg_dsn, autocommit=True)
+    try:
+        with conn.cursor() as cur:
+            # Create tables needed by tests
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    task_id UUID PRIMARY KEY,
+                    symbol VARCHAR(50) NOT NULL,
+                    asset_class VARCHAR(50) NOT NULL,
+                    status VARCHAR(50) NOT NULL,
+                    execution_id VARCHAR(100),
+                    graph_version VARCHAR(20),
+                    acknowledge_simulated BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    approved_at TIMESTAMP WITH TIME ZONE,
+                    heartbeat_at TIMESTAMP WITH TIME ZONE,
+                    locked_by VARCHAR(100),
+                    lease_until TIMESTAMP WITH TIME ZONE,
+                    attempts INTEGER DEFAULT 0,
+                    reject_reason TEXT,
+                    snapshot_hash BYTEA
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS market_payloads (
+                    task_id UUID NOT NULL,
+                    symbol VARCHAR(50) NOT NULL,
+                    source VARCHAR(50) NOT NULL,
+                    payload_jsonb JSONB NOT NULL,
+                    fetched_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                    data_quality VARCHAR(20) NOT NULL,
+                    PRIMARY KEY (task_id, symbol, source)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS quant_metrics (
+                    task_id UUID NOT NULL,
+                    symbol VARCHAR(50) NOT NULL,
+                    metrics_json JSONB NOT NULL,
+                    hash BYTEA NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    PRIMARY KEY (task_id, symbol)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS published (
+                    task_id UUID PRIMARY KEY,
+                    report_jsonb JSONB NOT NULL,
+                    published_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                    published_by UUID NOT NULL,
+                    snapshot_hash BYTEA NOT NULL
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS task_events (
+                    id BIGSERIAL PRIMARY KEY,
+                    task_id UUID NOT NULL,
+                    event_type VARCHAR(50) NOT NULL,
+                    payload_jsonb JSONB NOT NULL,
+                    actor_role VARCHAR(50) NOT NULL,
+                    actor_id VARCHAR(100) NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS idempotency_keys (
+                    api_key_id UUID NOT NULL,
+                    key VARCHAR(100) NOT NULL,
+                    task_id UUID NOT NULL,
+                    payload_hash BYTEA NOT NULL,
+                    response_status INTEGER NOT NULL,
+                    response_body JSONB NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    PRIMARY KEY (api_key_id, key)
+                )
+            """)
+    finally:
+        conn.close()
+
+
 def _pool_config_min(num_workers: int = 1) -> dict:
     """Configuração de pool com tamanhos mínimos calculados pela fórmula."""
     domain_size, checkpoint_size = calculate_pool_sizes(num_workers)
@@ -104,7 +189,8 @@ def _full_cycle(task_id: str, lock_conn, timeout_seconds: float = 5.0) -> bool:
         with get_checkpoint_connection() as cp_conn:
             with cp_conn.cursor() as cur:
                 cur.execute("SELECT 1 as checkpoint_ok")
-                assert cur.fetchone()[0] == 1
+                row = cur.fetchone()
+                assert row["checkpoint_ok"] == 1
 
         return True
     finally:
@@ -211,8 +297,9 @@ def test_min_pool_checkpoint_independent(worker_pools_min):
         # checkpoint_pool deve estar disponível independentemente
         with get_checkpoint_connection() as cp_conn:
             with cp_conn.cursor() as cur:
-                cur.execute("SELECT 1")
-                assert cur.fetchone()[0] == 1
+                cur.execute("SELECT 1 as checkpoint_ok")
+                row = cur.fetchone()
+                assert row["checkpoint_ok"] == 1
     finally:
         release_advisory_lock(task_id, lock_conn)
 

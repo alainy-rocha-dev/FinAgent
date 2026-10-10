@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime
 
 from psycopg.rows import dict_row
 
 from src.domain.repositories import (
-    DomainConnection,
     EventsRepo,
     IdempotencyKeyRecord,
     IdempotencyRepo,
@@ -308,4 +306,5 @@ def create_repositories() -> Repositories:
         published=PgPublishedRepo(),
         events=PgEventsRepo(),
         idempotency=PgIdempotencyRepo(),
-    )
+    ) 
+ 

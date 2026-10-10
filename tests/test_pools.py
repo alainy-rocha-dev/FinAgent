@@ -84,12 +84,13 @@ def test_pool_sizing_no_deadlock_on_lock_conn():
 def test_pg_terminate_backend_reconnects(pg_dsn):
     """
     Derruba uma conexao do pool no meio do uso.
-    O erro deve virar OperationalError (connection-related) e o pool deve reconectar.
+    O erro deve virar erro de conexao transitorio (OperationalError, InterfaceError, AdminShutdown) e o pool deve reconectar.
     Requer Postgres real rodando.
     """
     import psycopg
     from psycopg_pool import ConnectionPool
     from psycopg import OperationalError, InterfaceError
+    from psycopg.errors import AdminShutdown
 
     pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn)
     try:
@@ -111,9 +112,9 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
             conn = pool.getconn()
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
-        except (OperationalError, InterfaceError) as e:
+        except (OperationalError, InterfaceError, AdminShutdown) as e:
             # Erro de conexao transitorio - pool deve recuperar
-            assert "connection" in str(e).lower() or "closed" in str(e).lower() or "terminated" in str(e).lower()
+            assert "connection" in str(e).lower() or "closed" in str(e).lower() or "terminated" in str(e).lower() or "administrator" in str(e).lower()
 
         # Segunda tentativa deve funcionar (pool limpou conexao morta)
         conn = pool.getconn()
