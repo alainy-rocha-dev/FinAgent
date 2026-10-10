@@ -19,11 +19,13 @@ import logging
 import threading
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
+from typing import TYPE_CHECKING
 
-import psycopg
-from psycopg.rows import dict_row
-from psycopg_pool import Pool as PsycopgPool
-from psycopg_pool import SimpleConnectionPool
+if TYPE_CHECKING:
+    import psycopg
+    from psycopg.rows import dict_row
+    from psycopg_pool import Pool as PsycopgPool
+    from psycopg_pool import SimpleConnectionPool
 
 # async_sessionmaker added in SQLAlchemy 2.0; types stubs may lag
 from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
@@ -41,12 +43,33 @@ logger = logging.getLogger(__name__)
 _async_engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
-_domain_pool: PsycopgPool | None = None
-_checkpoint_pool: PsycopgPool | None = None
-_lock_conn: psycopg.Connection | None = None
+_domain_pool: "PsycopgPool | None" = None
+_checkpoint_pool: "PsycopgPool | None" = None
+_lock_conn: "psycopg.Connection | None" = None
 
 _pool_lock = threading.Lock()
 _initialized = False
+
+
+# Lazy imports para permitir testes unitarios sem psycopg instalado
+def _get_psycopg():
+    import psycopg
+    return psycopg
+
+
+def _get_dict_row():
+    from psycopg.rows import dict_row
+    return dict_row
+
+
+def _get_simple_pool():
+    from psycopg_pool import SimpleConnectionPool
+    return SimpleConnectionPool
+
+
+def _get_psycopg_pool():
+    from psycopg_pool import Pool as PsycopgPool
+    return PsycopgPool
 
 
 def _build_dsn() -> str:
@@ -112,6 +135,10 @@ def init_worker_pools(
             return
         dsn = _build_dsn()
 
+        SimpleConnectionPool = _get_simple_pool()
+        dict_row = _get_dict_row()
+        psycopg = _get_psycopg()
+
         # domain_pool: transacional, para machine, market_payloads, published, events
         _domain_pool = SimpleConnectionPool(
             min_size=1,
@@ -159,7 +186,7 @@ def close_worker_pools() -> None:
 
 
 @contextmanager
-def get_domain_connection() -> Generator[psycopg.Connection, None, None]:
+def get_domain_connection() -> Generator["psycopg.Connection", None, None]:
     """Obtém conexão do domain_pool (transacional)."""
     if _domain_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")
@@ -175,7 +202,7 @@ def get_domain_connection() -> Generator[psycopg.Connection, None, None]:
 
 
 @contextmanager
-def get_checkpoint_connection() -> Generator[psycopg.Connection, None, None]:
+def get_checkpoint_connection() -> Generator["psycopg.Connection", None, None]:
     """Obtém conexão do checkpoint_pool (autocommit + dict_row)."""
     if _checkpoint_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")
@@ -186,7 +213,7 @@ def get_checkpoint_connection() -> Generator[psycopg.Connection, None, None]:
         _checkpoint_pool.putconn(conn)
 
 
-def get_lock_connection() -> psycopg.Connection:
+def get_lock_connection() -> "psycopg.Connection":
     """
     Retorna a conexão dedicada para advisory lock.
     O caller NÃO deve fechar esta conexão; ela vive durante todo o worker.
@@ -196,7 +223,7 @@ def get_lock_connection() -> psycopg.Connection:
     return _lock_conn
 
 
-def acquire_advisory_lock(task_id: str, lock_conn: psycopg.Connection) -> bool:
+def acquire_advisory_lock(task_id: str, lock_conn: "psycopg.Connection") -> bool:
     """
     Adquire advisory lock de sessão para task_id.
     Retorna True se adquirido, False se já detido por outra sessão.

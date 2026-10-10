@@ -7,7 +7,7 @@ Variáveis de ambiente (.env) sobrescrevem valores do YAML.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -50,14 +50,14 @@ class Config:
     retention_days: int = 365
 
     # Data quality
-    stale_max_age_days: StaleConfig = StaleConfig()
+    stale_max_age_days: StaleConfig = field(default_factory=StaleConfig)
 
     # Rejeição
     reject_reason_min_chars: int = 10
     reject_reason_max_chars: int = 1000
 
     # Rate limiting
-    rate_limit: RateLimitConfig = RateLimitConfig()
+    rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
 
     # Worker / Celery
     task_time_limit: int = 600
