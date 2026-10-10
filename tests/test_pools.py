@@ -84,13 +84,12 @@ def test_pool_sizing_no_deadlock_on_lock_conn():
 def test_pg_terminate_backend_reconnects(pg_dsn):
     """
     Derruba uma conexao do pool no meio do uso.
-    O erro deve virar TransientError (ou similar) e o pool deve reconectar.
+    O erro deve virar OperationalError (connection-related) e o pool deve reconectar.
     Requer Postgres real rodando.
     """
     import psycopg
     from psycopg_pool import ConnectionPool
-    from psycopg import OperationalError
-    from psycopg.errors import TransientError
+    from psycopg import OperationalError, InterfaceError
 
     pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn)
     try:
@@ -107,18 +106,14 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
             cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
         admin_conn.close()
 
-        # Proxima operacao deve falhar com TransientError e pool deve recuperar
+        # Proxima operacao deve falhar com erro de conexao e pool deve recuperar
         try:
             conn = pool.getconn()
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
-        except TransientError:
-            # TransientError indica erro transitorio (conexao morta) - pool deve recuperar
-            pass
-        except OperationalError as e:
-            # Alguns erros operacionais tambem sao transitorios
-            # Verifica se e um erro de conexao
-            assert "connection" in str(e).lower() or "closed" in str(e).lower()
+        except (OperationalError, InterfaceError) as e:
+            # Erro de conexao transitorio - pool deve recuperar
+            assert "connection" in str(e).lower() or "closed" in str(e).lower() or "terminated" in str(e).lower()
 
         # Segunda tentativa deve funcionar (pool limpou conexao morta)
         conn = pool.getconn()

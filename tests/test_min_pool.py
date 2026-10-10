@@ -50,6 +50,8 @@ def _pool_config_min(num_workers: int = 1) -> dict:
 @pytest.fixture(scope="function")
 def worker_pools_min(pg_dsn):
     """Inicializa pools com tamanhos mínimos (min_size=1) para teste de deadlock."""
+    # Set DATABASE_URL for config
+    os.environ["DATABASE_URL"] = pg_dsn
     cfg = _pool_config_min(num_workers=1)
     init_worker_pools(domain_pool_size=cfg["min_domain"], checkpoint_pool_size=cfg["min_checkpoint"])
     yield cfg
@@ -59,6 +61,7 @@ def worker_pools_min(pg_dsn):
 @pytest.fixture(scope="function")
 def worker_pools_normal(pg_dsn):
     """Inicializa pools com tamanhos normais (fórmula) para comparação."""
+    os.environ["DATABASE_URL"] = pg_dsn
     cfg = _pool_config_min(num_workers=4)
     init_worker_pools(domain_pool_size=cfg["domain_pool_size"], checkpoint_pool_size=cfg["checkpoint_pool_size"])
     yield cfg
@@ -239,7 +242,7 @@ def test_pool_below_minimum_times_out(pg_dsn):
         # Pega a única conexão e NÃO devolve
         conn = pool.getconn()
         # Tenta pegar outra - deve dar timeout
-        with pytest.raises(OperationalError, match="timeout|pool exhausted|connection pool"):
+        with pytest.raises(OperationalError, match="couldn't get a connection after"):
             pool.getconn()
     finally:
         # Devolve e fecha
@@ -253,6 +256,9 @@ def test_pool_sizing_formula_matches_documented(pg_dsn):
     Verifica que a fórmula documentada produz os tamanhos esperados
     e que os pools podem ser criados com esses tamanhos.
     """
+    # Set DATABASE_URL for config
+    os.environ["DATABASE_URL"] = pg_dsn
+
     # Cenário: 4 workers, 2 conexões/worker, margem 2
     domain_size, checkpoint_size = calculate_pool_sizes(num_workers=4, conexoes_por_worker=2, margem=2)
 
