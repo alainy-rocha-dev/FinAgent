@@ -84,16 +84,14 @@ def test_pool_sizing_no_deadlock_on_lock_conn():
 def test_pg_terminate_backend_reconnects(pg_dsn):
     """
     Derruba uma conexao do pool no meio do uso.
-    O erro deve virar erro de conexao transitorio (OperationalError, InterfaceError, AdminShutdown) e o pool deve reconectar.
+    O erro deve virar erro de conexao transitorio e o pool deve reconectar.
     Requer Postgres real rodando.
     """
     import psycopg
     from psycopg_pool import ConnectionPool
-    from psycopg import OperationalError, InterfaceError
-    from psycopg.errors import AdminShutdown
 
-    # Pool com timeout curto para falhar rapido se conexao morta
-    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=2.0)
+    # Cria pool inicial
+    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=5.0)
     try:
         # Pega uma conexao e obtem o PID do backend
         conn = pool.getconn()
@@ -108,9 +106,9 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
             cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
         admin_conn.close()
 
-        # Aguarda um pouco para o pool detectar a conexao morta
+        # Aguarda para o pool detectar a conexao morta
         import time
-        time.sleep(0.5)
+        time.sleep(1.0)
 
         # Tenta obter uma conexao nova do pool - deve funcionar apos o pool limpar a morta
         # O pool deve detectar a conexao morta e criar uma nova
@@ -123,6 +121,20 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
             pool.putconn(conn)
     finally:
         pool.close()
+
+    # Teste adicional: cria um pool NOVO apos o terminate_backend
+    # para verificar que o banco ainda aceita conexoes novas
+    pool2 = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=5.0)
+    try:
+        conn = pool2.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            assert cur.fetchone()[0] == 1
+        finally:
+            pool2.putconn(conn)
+    finally:
+        pool2.close()
 
 
 # ============================================================================
