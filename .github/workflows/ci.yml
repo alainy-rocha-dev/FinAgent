@@ -39,11 +39,6 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install core tools
         run: pip install mypy
-      - name: Install type stubs
-        run: |
-          pip install types-redis==5.0.1.2
-          pip install types-pyyaml==6.0.12.2
-          pip install types-sqlalchemy==1.4.53.38
       - name: Install runtime deps (pure Python)
         run: pip install sqlalchemy redis fastapi uvicorn pydantic pydantic-settings pyyaml prometheus-client python-json-logger tenacity celery psycopg
       - name: Install optional deps (may need build tools)
