@@ -17,11 +17,13 @@ from __future__ import annotations
 import atexit
 import logging
 import threading
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import Pool as PsycopgPool
+from psycopg_pool import SimpleConnectionPool
 
 # async_sessionmaker added in SQLAlchemy 2.0; types stubs may lag
 from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
@@ -39,8 +41,8 @@ logger = logging.getLogger(__name__)
 _async_engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
-_domain_pool: psycopg.pool.Pool | None = None
-_checkpoint_pool: psycopg.pool.Pool | None = None
+_domain_pool: PsycopgPool | None = None
+_checkpoint_pool: PsycopgPool | None = None
 _lock_conn: psycopg.Connection | None = None
 
 _pool_lock = threading.Lock()
@@ -111,7 +113,7 @@ def init_worker_pools(
         dsn = _build_dsn()
 
         # domain_pool: transacional, para machine, market_payloads, published, events
-        _domain_pool = psycopg.pool.SimpleConnectionPool(
+        _domain_pool = SimpleConnectionPool(
             min_size=1,
             max_size=domain_pool_size,
             dsn=dsn,
@@ -119,7 +121,7 @@ def init_worker_pools(
         )
 
         # checkpoint_pool: autocommit + dict_row (exigido pelo PostgresSaver)
-        _checkpoint_pool = psycopg.pool.SimpleConnectionPool(
+        _checkpoint_pool = SimpleConnectionPool(
             min_size=1,
             max_size=checkpoint_pool_size,
             dsn=dsn,
@@ -157,7 +159,7 @@ def close_worker_pools() -> None:
 
 
 @contextmanager
-def get_domain_connection() -> psycopg.Connection:
+def get_domain_connection() -> Generator[psycopg.Connection, None, None]:
     """Obtém conexão do domain_pool (transacional)."""
     if _domain_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")
@@ -173,7 +175,7 @@ def get_domain_connection() -> psycopg.Connection:
 
 
 @contextmanager
-def get_checkpoint_connection() -> psycopg.Connection:
+def get_checkpoint_connection() -> Generator[psycopg.Connection, None, None]:
     """Obtém conexão do checkpoint_pool (autocommit + dict_row)."""
     if _checkpoint_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")

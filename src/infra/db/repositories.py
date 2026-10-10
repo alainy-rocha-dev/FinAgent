@@ -154,7 +154,7 @@ class IdempotencyRepo(ABC):
 
 class PgTasksRepo(TasksRepo):
     def create(self, task: TaskRecord) -> None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -187,7 +187,7 @@ class PgTasksRepo(TasksRepo):
                 )
 
     def get(self, task_id: uuid.UUID) -> TaskRecord | None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute("SELECT * FROM tasks WHERE task_id = %s", (task_id,))
                 row = cur.fetchone()
@@ -214,13 +214,13 @@ class PgTasksRepo(TasksRepo):
         params.append(expected_status)
 
         sql = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE task_id = %s AND status = %s"
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(sql, params)
                 return bool(cur.rowcount > 0)
 
     def update_heartbeat(self, task_id: uuid.UUID, worker_id: str) -> bool:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -236,7 +236,7 @@ class PgTasksRepo(TasksRepo):
 class PgMarketRepo(MarketRepo):
     def upsert(self, payload: MarketPayloadRecord) -> bool:
         """ON CONFLICT DO NOTHING garante idempotência por execução."""
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -256,7 +256,7 @@ class PgMarketRepo(MarketRepo):
                 return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID, symbol: str, source: str) -> MarketPayloadRecord | None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     "SELECT * FROM market_payloads WHERE task_id = %s AND symbol = %s AND source = %s",
@@ -278,7 +278,7 @@ class PgMarketRepo(MarketRepo):
 class PgQuantRepo(QuantRepo):
     def upsert(self, metrics: QuantMetricsRecord) -> bool:
         """ON CONFLICT DO NOTHING - métricas persistem para auditoria."""
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -297,7 +297,7 @@ class PgQuantRepo(QuantRepo):
                 return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID, symbol: str) -> QuantMetricsRecord | None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     "SELECT * FROM quant_metrics WHERE task_id = %s AND symbol = %s",
@@ -318,7 +318,7 @@ class PgQuantRepo(QuantRepo):
 class PgPublishedRepo(PublishedRepo):
     def insert(self, published: PublishedRecord) -> bool:
         """UNIQUE task_id garante exactly-once."""
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -336,7 +336,7 @@ class PgPublishedRepo(PublishedRepo):
                 return bool(cur.rowcount > 0)
 
     def get(self, task_id: uuid.UUID) -> PublishedRecord | None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute("SELECT * FROM published WHERE task_id = %s", (task_id,))
                 row = cur.fetchone()
@@ -360,7 +360,7 @@ class PgEventsRepo(EventsRepo):
         actor_role: str,
         actor_id: str,
     ) -> None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -373,7 +373,7 @@ class PgEventsRepo(EventsRepo):
 
 class PgIdempotencyRepo(IdempotencyRepo):
     def get(self, api_key_id: uuid.UUID, key: str) -> IdempotencyKeyRecord | None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     "SELECT * FROM idempotency_keys WHERE api_key_id = %s AND key = %s",
@@ -393,7 +393,7 @@ class PgIdempotencyRepo(IdempotencyRepo):
                 return None
 
     def insert(self, record: IdempotencyKeyRecord) -> None:
-        with get_domain_connection() as conn:
+        with get_domain_connection() as conn:  # type: psycopg.Connection
             with conn.cursor() as cur:
                 cur.execute(
                     """

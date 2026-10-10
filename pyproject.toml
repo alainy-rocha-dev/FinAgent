@@ -120,6 +120,7 @@ module = [
     "langgraph.*",
     "langgraph_checkpoint.*",
     "psycopg.*",
+    "psycopg_pool",
     "sqlalchemy.*",
     "asyncpg.*",
     "fastapi.*",
