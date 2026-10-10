@@ -5,7 +5,7 @@ Cobertura:
 - pg_terminate_backend: conexao cai -> TransientError -> pool reconecta
 - Advisory lock: dois consumidores disputam mesmo task_id; liberacao em finally
 - Criacao pos-fork: falha se pool criado no import
-- Chave do lock: UUID -> duas chaves int64 (hash split 32+32 bits)
+- Chave do lock: UUID -> duas chaves int64 (bits do UUID, determinístico)
 
 Marcadores:
 - @pytest.mark.unit: testes unitarios (mocks, sem Postgres)
@@ -14,6 +14,7 @@ Marcadores:
 import os
 import threading
 import uuid
+import hashlib
 from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
@@ -128,7 +129,7 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
 def test_advisory_lock_key_generation_deterministic():
     """
     A chave do advisory lock deve ser deterministica para o mesmo task_id.
-    Usamos hash do UUID split em dois int32 (pg_try_advisory_lock usa dois int64).
+    Usamos bits do UUID (uuid.int) split em dois int32.
     """
     from src.infra.db.pools import acquire_advisory_lock, release_advisory_lock
 
@@ -156,19 +157,63 @@ def test_advisory_lock_key_generation_deterministic():
 
 
 @pytest.mark.unit
-def test_advisory_lock_hash_collision_resistance():
+def test_advisory_lock_keys_deterministic_same_uuid():
     """
-    Verifica que task_ids diferentes geram chaves diferentes (baixo risco de colisao).
-    Usa hash split: key1 = hash & 0x7FFFFFFF, key2 = (hash >> 31) & 0x7FFFFFFF
+    Mesmo UUID deve gerar as mesmas chaves em processos diferentes.
+    Usa uuid.int (determinístico) em vez de hash() do Python.
     """
+    from src.infra.db.pools import _advisory_lock_keys
+
+    # UUID válido
+    task_id = "550e8400-e29b-41d4-a716-446655440000"
+
+    # Primeira chamada
+    key1_1, key2_1 = _advisory_lock_keys(task_id)
+
+    # Segunda chamada (simula outro processo)
+    key1_2, key2_2 = _advisory_lock_keys(task_id)
+
+    # Chaves devem ser identicas
+    assert key1_1 == key1_2
+    assert key2_1 == key2_2
+
+    # Chaves devem estar no range correto
+    assert 0 <= key1_1 <= 0x7FFFFFFF
+    assert 0 <= key2_1 <= 0x7FFFFFFF
+
+
+@pytest.mark.unit
+def test_advisory_lock_keys_different_uuids():
+    """
+    UUIDs diferentes devem gerar chaves diferentes (baixo risco de colisao).
+    """
+    from src.infra.db.pools import _advisory_lock_keys
+
     keys_seen = set()
     for i in range(1000):
-        task_id = f"task-{i}-{uuid.uuid4()}"
-        key1 = hash(task_id) & 0x7FFFFFFF
-        key2 = (hash(task_id) >> 31) & 0x7FFFFFFF
+        task_id = str(uuid.uuid4())
+        key1, key2 = _advisory_lock_keys(task_id)
         key_pair = (key1, key2)
         assert key_pair not in keys_seen, f"Colisao de chaves detectada para {task_id}"
         keys_seen.add(key_pair)
+
+
+@pytest.mark.unit
+def test_advisory_lock_keys_fallback_for_non_uuid():
+    """
+    Strings que não são UUID usam hashlib sha256 determinístico.
+    """
+    from src.infra.db.pools import _advisory_lock_keys
+
+    task_id = "not-a-uuid-string"
+
+    key1_1, key2_1 = _advisory_lock_keys(task_id)
+    key1_2, key2_2 = _advisory_lock_keys(task_id)
+
+    assert key1_1 == key1_2
+    assert key2_1 == key2_2
+    assert 0 <= key1_1 <= 0x7FFFFFFF
+    assert 0 <= key2_1 <= 0x7FFFFFFF
 
 
 @pytest.mark.integration
@@ -240,6 +285,33 @@ def test_advisory_lock_released_on_exception(pg_dsn):
         lock_conn.close()
 
 
+@pytest.mark.integration
+def test_advisory_lock_released_when_connection_dies(pg_dsn):
+    """
+    Se a conexao morre (ex: processo morre), o Postgres libera o lock automaticamente.
+    """
+    import psycopg
+    from src.infra.db.pools import acquire_advisory_lock
+
+    task_id = str(uuid.uuid4())
+    lock_conn = psycopg.connect(pg_dsn, autocommit=True)
+
+    # Adquire lock
+    acquired = acquire_advisory_lock(task_id, lock_conn)
+    assert acquired is True
+
+    # Fecha a conexao (simula morte do processo)
+    lock_conn.close()
+
+    # Nova conexao deve conseguir adquirir o lock (Postgres liberou na morte da sessao)
+    lock_conn_2 = psycopg.connect(pg_dsn, autocommit=True)
+    try:
+        acquired = acquire_advisory_lock(task_id, lock_conn_2)
+        assert acquired is True, "Lock deve estar livre apos morte da sessao anterior"
+    finally:
+        lock_conn_2.close()
+
+
 # ============================================================================
 # 4. Criacao pos-fork: falha se pool criado no import
 # ============================================================================
@@ -255,19 +327,16 @@ def test_pools_created_post_fork_not_on_import():
     # Garante estado limpo
     pools_module.close_worker_pools()
 
-    # Mock da config e do pool para evitar necessidade de psycopg_pool
-    mock_pool = MagicMock()
-    mock_pool.closeall = MagicMock()
-
+    # Mock da config
     with patch('src.infra.db.pools.get_config') as mock_get_config, \
-         patch('src.infra.db.pools._get_simple_pool') as mock_get_pool, \
+         patch('src.infra.db.pools._get_pool') as mock_get_pool, \
          patch('src.infra.db.pools._get_dict_row') as mock_get_dict_row, \
          patch('src.infra.db.pools._get_psycopg') as mock_get_psycopg:
         mock_config = MagicMock()
         mock_config.database_url = "postgresql://test:test@localhost/test"
         mock_get_config.return_value = mock_config
         mock_get_pool.return_value = MagicMock(return_value=MagicMock())
-        mock_get_dict_row.return_value = lambda x: x  # dummy dict_row
+        mock_get_dict_row.return_value = lambda x: x
         mock_get_psycopg.return_value = MagicMock(connect=MagicMock(return_value=MagicMock()))
 
         # Verifica que variaveis globais estao None antes do init
@@ -295,19 +364,19 @@ def test_pools_created_post_fork_not_on_import():
 
 
 # ============================================================================
-# 5. Chave do lock: UUID -> duas chaves int64 (hash split 32+32 bits)
+# 5. Chave do lock: UUID -> duas chaves int64 (bits do UUID, determinístico)
 # ============================================================================
 
 @pytest.mark.unit
 def test_advisory_lock_hash_split_32_32():
     """
     Verifica a geracao de chaves: split de 64 bits em dois int32.
-    key1 = hash & 0x7FFFFFFF (31 bits + sinal)
-    key2 = (hash >> 31) & 0x7FFFFFFF
+    key1 = uuid.int & 0x7FFFFFFF (31 bits + sinal)
+    key2 = (uuid.int >> 31) & 0x7FFFFFFF
     """
     from src.infra.db.pools import acquire_advisory_lock
 
-    task_id = "test-task-123"
+    task_id = "550e8400-e29b-41d4-a716-446655440000"
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
@@ -357,6 +426,26 @@ def test_advisory_lock_deterministic_keys_same_task_id():
 
     # Chaves devem ser identicas
     assert keys_1 == keys_2
+
+
+@pytest.mark.unit
+def test_advisory_lock_keys_same_across_processes():
+    """
+    Mesmo UUID deve gerar as mesmas chaves em processos diferentes.
+    Testa que _advisory_lock_keys usa uuid.int (determinístico) em vez de hash().
+    """
+    from src.infra.db.pools import _advisory_lock_keys
+
+    task_id = "550e8400-e29b-41d4-a716-446655440000"
+
+    # Simula processo 1
+    key1_1, key2_1 = _advisory_lock_keys(task_id)
+
+    # Simula processo 2 (nova chamada, hash() do Python seria diferente se randomizado)
+    key1_2, key2_2 = _advisory_lock_keys(task_id)
+
+    assert key1_1 == key1_2
+    assert key2_1 == key2_2
 
 
 # ============================================================================

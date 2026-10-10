@@ -15,8 +15,10 @@ NUNCA no import do módulo.
 from __future__ import annotations
 
 import atexit
+import hashlib
 import logging
 import threading
+import uuid
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from typing import TYPE_CHECKING, Any
@@ -49,25 +51,40 @@ _pool_lock = threading.Lock()
 _initialized = False
 
 
-# Lazy imports para permitir testes unitarios sem psycopg instalado
-def _get_psycopg() -> Any:  # type: ignore[return-value]
+def _get_psycopg() -> Any:
     import psycopg
     return psycopg
 
 
-def _get_dict_row() -> Any:  # type: ignore[return-value]
+def _get_dict_row() -> Any:
     from psycopg.rows import dict_row
     return dict_row
 
 
-def _get_simple_pool() -> Any:  # type: ignore[return-value]
-    from psycopg_pool import ConnectionPool as SimpleConnectionPool
-    return SimpleConnectionPool
-
-
-def _get_psycopg_pool() -> Any:  # type: ignore[return-value]
+def _get_pool() -> Any:
     from psycopg_pool import ConnectionPool as PsycopgPool
     return PsycopgPool
+
+
+def _advisory_lock_keys(task_id: str) -> tuple[int, int]:
+    """
+    Gera duas chaves int64 determinísticas a partir do task_id (UUID).
+    Usa os bits do UUID (uuid.int) em vez de hash() do Python,
+    pois hash() é randomizado por processo (PYTHONHASHSEED).
+    """
+    try:
+        # Se task_id é UUID válido, usa seus bits diretamente
+        u = uuid.UUID(task_id)
+        uuid_int = u.int
+    except ValueError:
+        # Fallback: hashlib sha256 determinístico
+        h = hashlib.sha256(task_id.encode()).digest()
+        uuid_int = int.from_bytes(h, "big")
+
+    # Split em dois int64 (31 bits cada, sinal positivo)
+    key1 = uuid_int & 0x7FFFFFFF
+    key2 = (uuid_int >> 31) & 0x7FFFFFFF
+    return key1, key2
 
 
 def _build_dsn() -> str:
@@ -133,25 +150,25 @@ def init_worker_pools(
             return
         dsn = _build_dsn()
 
-        SimpleConnectionPool = _get_simple_pool()
+        PsycopgPool = _get_pool()
         dict_row = _get_dict_row()
         psycopg = _get_psycopg()
 
         # domain_pool: transacional, para machine, market_payloads, published, events
-        _domain_pool = SimpleConnectionPool(
+        _domain_pool = PsycopgPool(
             min_size=1,
             max_size=domain_pool_size,
-            dsn=dsn,
+            conninfo=dsn,
             autocommit=False,
         )
 
         # checkpoint_pool: autocommit + dict_row (exigido pelo PostgresSaver)
-        _checkpoint_pool = SimpleConnectionPool(
+        _checkpoint_pool = PsycopgPool(
             min_size=1,
             max_size=checkpoint_pool_size,
-            dsn=dsn,
+            conninfo=dsn,
             autocommit=True,
-            row_factory=dict_row,
+            kwargs={"row_factory": dict_row},
         )
 
         # lock_conn: conexão dedicada para advisory lock por task_id
@@ -226,9 +243,8 @@ def acquire_advisory_lock(task_id: str, lock_conn: psycopg.Connection) -> bool:
     Adquire advisory lock de sessão para task_id.
     Retorna True se adquirido, False se já detido por outra sessão.
     """
-    # PostgreSQL advisory lock usa dois int64; usamos hash do task_id
-    lock_key_1 = hash(task_id) & 0x7FFFFFFF
-    lock_key_2 = (hash(task_id) >> 31) & 0x7FFFFFFF
+    # PostgreSQL advisory lock usa dois int64; usamos bits do UUID (determinístico)
+    lock_key_1, lock_key_2 = _advisory_lock_keys(task_id)
     with lock_conn.cursor() as cur:
         cur.execute("SELECT pg_try_advisory_lock(%s, %s)", (lock_key_1, lock_key_2))
         result = cur.fetchone()
@@ -237,8 +253,7 @@ def acquire_advisory_lock(task_id: str, lock_conn: psycopg.Connection) -> bool:
 
 def release_advisory_lock(task_id: str, lock_conn: psycopg.Connection) -> None:
     """Libera advisory lock para task_id."""
-    lock_key_1 = hash(task_id) & 0x7FFFFFFF
-    lock_key_2 = (hash(task_id) >> 31) & 0x7FFFFFFF
+    lock_key_1, lock_key_2 = _advisory_lock_keys(task_id)
     with lock_conn.cursor() as cur:
         cur.execute("SELECT pg_advisory_unlock(%s, %s)", (lock_key_1, lock_key_2))
 
