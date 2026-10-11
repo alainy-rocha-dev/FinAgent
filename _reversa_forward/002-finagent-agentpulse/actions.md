@@ -41,7 +41,7 @@
 | T023 | Criar migrações SQL: 009_langgraph_checkpointer.sql (PostgresSaver) | T016 | - | `migrations/009_langgraph_checkpointer.sql` | 🟢 | `[ ]` |
 | T024 | Criar migrações SQL: 010_add_stale_config.sql | T016 | - | `migrations/010_add_stale_config.sql` | 🟢 | `[ ]` |
 | T025 | Scaffold: estrutura de pastas `src/infra/` (pools, repositórios, checkpointer) | T001, T002 | - | `src/infra/__init__.py` | 🟢 | `[X]` |
-| T026 | Scaffold: `src/infra/db/pools.py` — pools async (API) + psycopg (worker: domain_pool, checkpoint_pool, lock_conn) | T025 | - | `src/infra/db/pools.py` | 🟢 | `[ ]` |
+| T026 | Scaffold: `src/infra/db/pools.py` — pools async (API) + psycopg (worker: domain_pool, checkpoint_pool, lock_conn) | T025 | - | `src/infra/db/pools.py` | 🟢 | `[X]` |
 | T027 | Scaffold: `src/infra/db/repositories.py` — repositórios injetados no domínio (TasksRepo, MarketRepo, QuantRepo, PublishedRepo, EventsRepo, IdempotencyRepo) | T025 | - | `src/infra/db/repositories.py` | 🟢 | `[ ]` |
 | T028 | Scaffold: `src/infra/config.py` — carrega `config/defaults.yaml` + env vars, valida 28 parâmetros | T001, T025 | - | `src/infra/config.py` | 🟢 | `[ ]` |
 
