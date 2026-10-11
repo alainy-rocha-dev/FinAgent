@@ -8,8 +8,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Total de ações | 87 |
-| Paralelizáveis (`[//]`) | 31 |
+| Total de ações | 89 |
+| Paralelizáveis (`[//]`) | 33 |
 | Maior cadeia de dependência | 12 |
 
 ## Fase 1, Preparação
@@ -124,10 +124,13 @@
 | T086 | Vídeo 2min: docker kill + approve demonstrando retomada | T048, T066, T084 | `[//]` | `demo_retomada.mp4` | 🟢 | `[ ]` |
 | T087 | Handoff final: todas ações `[X]`, cross-check sem CRITICAL/HIGH, ADR 001 Accepted | T048, T065, T083, T084, T085 | - | `HANDOFF.md` | 🟢 | `[ ]` |
 | T088 | Teste arquitetural: domínio não importa infra (import-linter ou grep no CI) | T025, T049 | - | `.github/workflows/arch-check.yml`, `tests/test_arch_boundaries.py` | 🟢 | `[ ]` |
+| T089 | Recusa de inicialização quando o orçamento de conexões passa de max_connections, com teste | T026, T028 | `[//]` | `src/infra/db/pools.py`, `tests/test_connection_budget.py` | 🟢 | `[ ]` |
+| T090 | Verificação dos 14 dias nas dependências transitivas e pip-audit | T002 | `[//]` | `.github/workflows/ci.yml`, `docs/security/audit.md` | 🟢 | `[ ]` |
 
 ## Notas de execução
 
 - **2026-10-11**: T080 (teste de pool com tamanho mínimo sem deadlock) desvinculado do portão de retomada T048 e T043. Justificativa: o teste valida exclusivamente a integridade da camada de infraestrutura de pools (T026), não dependendo do grafo de retomada nem dos workers Celery.
+- **2026-10-11**: T089 criado para recusa de inicialização por orçamento de conexões > max_connections (a executar antes dos testes de concorrência do spike). T090 criado para verificação de 14 dias em dependências transitivas e pip-audit.
 
 ## Histórico de alterações
 
@@ -135,3 +138,4 @@
 |------|-----------|-------|
 | 2026-10-07 | Versão inicial gerada por `/reversa-to-do` | reversa |
 | 2026-10-11 | T080 adiantado para dependência direta de T026 (infra de pools) | reversa |
+| 2026-10-11 | T089 e T090 adicionados ao backlog antes do início do T027 | reversa |

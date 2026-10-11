@@ -119,11 +119,10 @@ def setup_database(pg_dsn):
         conn.close()
 
 
-def _pool_config_min(num_workers: int = 1) -> dict:
-    """Configuração de pool com tamanhos mínimos calculados pela fórmula."""
-    domain_size, checkpoint_size = calculate_pool_sizes(num_workers)
+def _pool_config_min() -> dict:
+    """Configuração de pool com tamanhos constantes por processo worker."""
+    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=2, checkpoint_conexoes_por_filho=1)
     # Para teste de deadlock, usamos max_size = min_size = 1
-    # mas a fórmula ainda dita qual seria o tamanho normal
     return {
         "domain_pool_size": domain_size,
         "checkpoint_pool_size": checkpoint_size,
@@ -137,7 +136,7 @@ def worker_pools_min(pg_dsn):
     """Inicializa pools com tamanhos mínimos (min_size=1) para teste de deadlock."""
     # Set DATABASE_URL for config
     os.environ["DATABASE_URL"] = pg_dsn
-    cfg = _pool_config_min(num_workers=1)
+    cfg = _pool_config_min()
     init_worker_pools(domain_pool_size=cfg["min_domain"], checkpoint_pool_size=cfg["min_checkpoint"])
     yield cfg
     close_worker_pools()
@@ -147,7 +146,7 @@ def worker_pools_min(pg_dsn):
 def worker_pools_normal(pg_dsn):
     """Inicializa pools com tamanhos normais (fórmula) para comparação."""
     os.environ["DATABASE_URL"] = pg_dsn
-    cfg = _pool_config_min(num_workers=4)
+    cfg = _pool_config_min()
     init_worker_pools(domain_pool_size=cfg["domain_pool_size"], checkpoint_pool_size=cfg["checkpoint_pool_size"])
     yield cfg
     close_worker_pools()
@@ -340,18 +339,33 @@ def test_pool_below_minimum_times_out(pg_dsn):
 def test_pool_sizing_formula_matches_documented(pg_dsn):
     """
     Verifica que a fórmula documentada produz os tamanhos esperados
+    (constante por processo filho Celery + orçamento global)
     e que os pools podem ser criados com esses tamanhos.
     """
+    from src.infra.db.pools import calculate_global_connection_budget
+
     # Set DATABASE_URL for config
     os.environ["DATABASE_URL"] = pg_dsn
 
-    # Cenário: 4 workers, 2 conexões/worker, margem 2
-    domain_size, checkpoint_size = calculate_pool_sizes(num_workers=4, conexoes_por_worker=2, margem=2)
+    # 1. Tamanhos por processo worker (constantes por processo filho Celery)
+    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=2, checkpoint_conexoes_por_filho=1)
 
-    assert domain_size == 10, f"domain_pool_size esperado 10, obtido {domain_size}"
-    assert checkpoint_size == 5, f"checkpoint_pool_size esperado 5, obtido {checkpoint_size}"
+    assert domain_size == 2, f"domain_pool_size por processo esperado 2, obtido {domain_size}"
+    assert checkpoint_size == 1, f"checkpoint_pool_size por processo esperado 1, obtido {checkpoint_size}"
 
-    # Cria pools com esses tamanhos
+    # 2. Orçamento global: API + workers x filhos x conexões por filho + margem <= max_connections
+    # Exemplo documentado: API 10, 1 worker com 4 filhos, 4 conexões por filho (2 domain + 1 cp + 1 lock), margem 4
+    total_budget = calculate_global_connection_budget(
+        api_connections=10,
+        num_workers=1,
+        filhos_por_worker=4,
+        conexoes_por_filho=4,
+        margem=4,
+    )
+    assert total_budget == 30, f"Orçamento global esperado 30, obtido {total_budget}"
+    assert total_budget <= 100  # Padrão típico de max_connections do Postgres é 100
+
+    # Cria pools com esses tamanhos por processo
     init_worker_pools(domain_pool_size=domain_size, checkpoint_pool_size=checkpoint_size)
     try:
         # Verifica que pools foram criados com os tamanhos corretos

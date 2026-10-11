@@ -8,19 +8,15 @@ Separação por papel de processo (D-01, D-02, D-03):
   - checkpoint_pool: autocommit + dict_row (exigido pelo PostgresSaver do LangGraph)
   - lock_conn: conexão dedicada para advisory lock por task_id
 
-Fórmula de dimensionamento (D-04):
-- domain_pool_size = num_workers * conexoes_por_worker + margem
-- checkpoint_pool_size = num_workers + 1
-- lock_conn = 1 (dedicada, não conta no pool)
-
-Exemplo: 4 workers, 2 conexões/worker, margem 2
-- domain_pool_size = 4 * 2 + 2 = 10 (min_size=1, max_size=10)
-- checkpoint_pool_size = 4 + 1 = 5 (min_size=1, max_size=5)
-
-Tamanhos mínimos (para testar ausência de deadlock):
-- domain_pool: min_size=1, max_size calculado pela fórmula
-- checkpoint_pool: min_size=1, max_size calculado pela fórmula
-- lock_conn: 1 conexão dedicada (sempre disponível)
+Fórmula de dimensionamento e orçamento de conexões:
+- Por processo worker (constante por processo filho Celery):
+  - domain_pool: min_size=1, max_size=conexoes_por_filho (padrão 2)
+  - checkpoint_pool: min_size=1, max_size=conexoes_checkpoint_por_filho (padrão 1)
+  - lock_conn: 1 conexão dedicada para advisory lock por task_id
+  - Total por processo worker filho = 2 + 1 + 1 = 4 conexões
+- Orçamento global (Postgres max_connections):
+  - conexões_API + (num_workers * filhos_por_worker * conexões_por_filho) + margem <= max_connections
+  - Exemplo: API (10) + (1 worker * 4 filhos * 4 conexões/filho) + margem (4) = 30 <= max_connections
 
 Pools criados em worker_process_init / fechados em worker_process_shutdown (pós-fork).
 NUNCA no import do módulo.
@@ -64,21 +60,49 @@ _pool_lock = threading.Lock()
 _initialized = False
 
 
-def calculate_pool_sizes(num_workers: int, conexoes_por_worker: int = 2, margem: int = 2) -> tuple[int, int]:
+def calculate_pool_sizes(
+    conexoes_por_filho: int = 2,
+    checkpoint_conexoes_por_filho: int = 1,
+) -> tuple[int, int]:
     """
-    Calcula tamanhos dos pools conforme fórmula documentada.
+    Calcula tamanhos dos pools por processo worker (constante por filho Celery).
+
+    Em arquitetura prefork, cada processo filho instancia seus próprios pools.
+    Portanto, os tamanhos dos pools por processo são constantes e não multiplicam
+    quadraticamente pelo número de workers.
 
     Args:
-        num_workers: Número de processos worker (filhos do Celery)
-        conexoes_por_worker: Conexões de domínio por worker (padrão 2)
-        margem: Margem de segurança (padrão 2)
+        conexoes_por_filho: Conexões máximas de domínio por filho (padrão 2)
+        checkpoint_conexoes_por_filho: Conexões de checkpoint por filho (padrão 1)
 
     Returns:
         Tupla (domain_pool_size, checkpoint_pool_size)
     """
-    domain_pool_size = num_workers * conexoes_por_worker + margem
-    checkpoint_pool_size = num_workers + 1
-    return domain_pool_size, checkpoint_pool_size
+    return conexoes_por_filho, checkpoint_conexoes_por_filho
+
+
+def calculate_global_connection_budget(
+    api_connections: int = 10,
+    num_workers: int = 1,
+    filhos_por_worker: int = 4,
+    conexoes_por_filho: int = 4,
+    margem: int = 4,
+) -> int:
+    """
+    Calcula o orçamento total de conexões abertas no PostgreSQL:
+    orçamento = conexões_API + (num_workers * filhos_por_worker * conexões_por_filho) + margem
+
+    Args:
+        api_connections: Conexões reservadas para o pool da API
+        num_workers: Número de nós/instâncias Celery worker
+        filhos_por_worker: Concurrency / número de processos filhos Celery por worker
+        conexoes_por_filho: Total de conexões de cada filho (domain + checkpoint + lock_conn)
+        margem: Margem de conexões para migrações, conexões de admin ou picos
+
+    Returns:
+        Total estimado de conexões no PostgreSQL
+    """
+    return api_connections + (num_workers * filhos_por_worker * conexoes_por_filho) + margem
 
 
 def _advisory_lock_keys(task_id: str) -> tuple[int, int]:
@@ -222,31 +246,78 @@ def close_worker_pools() -> None:
 
 def _translate_db_error(exc: Exception, conn: psycopg.Connection | None = None) -> Exception:
     """
-    Traduz exceções de banco para a taxonomia do domínio/infra:
-    - OperationalError, PoolTimeout, ou conexões caídas/fechadas -> TransientError
-    - IntegrityError, DataError -> PermanentError
+    Traduz exceções de banco para a taxonomia do domínio/infra com base no SQLSTATE:
+    - Conexão perdida (08xxx, 57P01, 57P02, 57P03), timeout de pool e deadlock/concorrência (40P01, 40001) -> TransientError
+    - Autenticação e configuração (28xxx, 3Dxxx, 42xxx, 53xxx) -> PermanentError
+    - Erros de integridade/dados (23xxx, 22xxx) -> PermanentError
+    - Desconhecido -> PermanentError (default seguro para falhas permanentes/inesperadas)
     """
     if isinstance(exc, TransientError | PermanentError):
         return exc
 
-    if isinstance(exc, psycopg.OperationalError | PoolTimeout):
-        err_transient = TransientError(f"Erro transitorio de banco/conexao: {exc}")
+    if isinstance(exc, PoolTimeout):
+        err_transient = TransientError(f"Erro transitorio: timeout ao obter conexao do pool: {exc}")
         err_transient.__cause__ = exc
         return err_transient
 
-    if isinstance(exc, psycopg.InterfaceError):
-        # Conexão fechada/quebrada durante operação
-        if conn is not None and (conn.closed or getattr(conn, "broken", False)):
-            err_lost = TransientError(f"Conexao perdida/fechada: {exc}")
-            err_lost.__cause__ = exc
-            return err_lost
-        return exc
+    # Se for psycopg.Error, inspecionamos o sqlstate de 5 caracteres
+    sqlstate = getattr(exc, "sqlstate", None)
+
+    if sqlstate is not None:
+        sqlstate_str = str(sqlstate).upper()
+
+        # 1. Conexão perdida / shutdown / falha de rede:
+        # 08xxx (Connection Exception), 57P01 (admin_shutdown), 57P02 (crash_shutdown), 57P03 (cannot_connect_now)
+        # 53200 (too_many_connections - transitório sob carga)
+        # 40P01 (deadlock_detected), 40001 (serialization_failure)
+        if (
+            sqlstate_str.startswith("08")
+            or sqlstate_str in {"57P01", "57P02", "57P03", "40P01", "40001", "53200"}
+        ):
+            err_trans = TransientError(f"Erro transitorio de conexao/deadlock (SQLSTATE {sqlstate_str}): {exc}")
+            err_trans.__cause__ = exc
+            return err_trans
+
+        # 2. Autenticação, configuração, tabela ausente, credencial inválida, violação de integridade:
+        # 28xxx (invalid_authorization_specification), 3Dxxx (invalid_catalog_name / database does not exist)
+        # 42xxx (syntax_error_or_access_rule_violation), 23xxx (integrity_constraint_violation)
+        # 22xxx (data_exception)
+        if (
+            sqlstate_str.startswith("28")
+            or sqlstate_str.startswith("3D")
+            or sqlstate_str.startswith("42")
+            or sqlstate_str.startswith("23")
+            or sqlstate_str.startswith("22")
+            or sqlstate_str.startswith("53")
+        ):
+            err_perm = PermanentError(f"Erro permanente de autenticacao/config/dados (SQLSTATE {sqlstate_str}): {exc}")
+            err_perm.__cause__ = exc
+            return err_perm
+
+    # Se a conexão foi fechada/quebrada durante a operação (InterfaceError/OperationalError sem sqlstate específico)
+    if isinstance(exc, psycopg.Error) and conn is not None and (conn.closed or getattr(conn, "broken", False)):
+        err_conn_lost = TransientError(f"Erro transitorio: conexao perdida/fechada durante operacao: {exc}")
+        err_conn_lost.__cause__ = exc
+        return err_conn_lost
+
+    if isinstance(exc, psycopg.OperationalError):
+        # OperationalError sem SQLSTATE (ex.: connection dropped sem código SQL retornado pelo server)
+        err_op = TransientError(f"Erro transitorio de comunicacao/operacao: {exc}")
+        err_op.__cause__ = exc
+        return err_op
 
     if isinstance(exc, psycopg.IntegrityError | psycopg.DataError):
-        err_perm = PermanentError(f"Erro permanente de dados/integridade: {exc}")
-        err_perm.__cause__ = exc
-        return err_perm
+        err_data = PermanentError(f"Erro permanente de dados/integridade: {exc}")
+        err_data.__cause__ = exc
+        return err_data
 
+    # Se for outra subclasse de psycopg.Error não mapeada explicitamente
+    if isinstance(exc, psycopg.Error):
+        err_unknown = PermanentError(f"Erro permanente desconhecido de banco de dados: {exc}")
+        err_unknown.__cause__ = exc
+        return err_unknown
+
+    # Exceções não relacionadas ao banco (ex: ValueError, KeyError, etc. do código da aplicação) passam intocadas
     return exc
 
 

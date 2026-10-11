@@ -48,6 +48,8 @@ A ordem de construção segue 5 etapas, com o **spike de retomada** (retomada se
 | D-18 | Primeiro coding = esqueleto do spike de retomada (grafo 2 nós, interrupt, Celery, Postgres, contador efeitos) | Entrega valor em dias; valida premissa nº1 antes de código de domínio | Código de domínio primeiro | 🟢 |
 | D-19 | RF-09 (Modo Legado): manter apenas aviso no `--help` de que modo legacy não tem durabilidade, retomada nem aprovação; padrão CLI sem fallback de mock | Reduz escopo; legado é apenas compatibilidade de saída, não de infra | CLI legacy com mock fallback | 🟢 |
 | D-20 | RF-08 (CLI AgentPulse): marcar como opcional, última prioridade, fora do MVP; primeiro corte se prazo apertar | CLI de cliente da API não é diferencial; API HTTP já expõe tudo | CLI obrigatório no MVP | 🟢 |
+| D-21 | Repositórios e UnitOfWork síncronos com psycopg nos dois processos (Opção A); endpoints da API que acessam banco usam `def` (FastAPI threadpool) | Elimina duplicidade de repositórios/UoW async/sync e dobras de testes; testes de concorrência e idempotência valem igualmente para worker e API; simplifica stack removendo asyncpg e SQLAlchemy | Opção B: AsyncUnitOfWork paralela + psycopg assíncrono (duplicação de UoW e repositórios) | 🟢 |
+
 
 ## 4. Premissas
 
@@ -140,3 +142,4 @@ A ordem de construção segue 5 etapas, com o **spike de retomada** (retomada se
 |------|-----------|-------|
 | 2026-10-05 | Versão inicial gerada por `/reversa-plan` | reversa |
 | 2026-10-07 | Adicionadas D-19, D-20; padronizada terminologia (spike de retomada, harness de caos, execução de caos); ADR 002 condicional | reversa |
+| 2026-10-11 | Adicionada D-21: UnitOfWork síncrona com psycopg em API e Worker (Opção A) | reversa |

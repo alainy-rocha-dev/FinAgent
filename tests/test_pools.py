@@ -40,26 +40,29 @@ def pg_dsn():
 @pytest.mark.unit
 def test_pool_sizing_formula():
     """
-    Formula de dimensionamento:
-    - domain_pool_size = num_workers * conexoes_por_worker + margem
-    - checkpoint_pool_size = num_workers + 1
-    - lock_conn = 1 dedicada (sempre disponivel)
+    Fórmula de dimensionamento e orçamento de conexões:
+    - Por processo filho: domain_pool (2) + checkpoint_pool (1) + lock_conn (1) = 4 conexões constantes
+    - Orçamento global: API + (workers x filhos x conexões por filho) + margem <= max_connections
 
-    Este teste valida a logica da formula sem precisar de Postgres.
+    Este teste valida a lógica da fórmula sem precisar de Postgres.
     """
-    num_workers = 4
-    conexoes_por_worker = 2
-    margem = 2
+    conexoes_por_filho = 2
+    checkpoint_conexoes_por_filho = 1
+    lock_conn = 1
 
-    domain_pool_size = num_workers * conexoes_por_worker + margem
-    checkpoint_pool_size = num_workers + 1
+    total_por_filho = conexoes_por_filho + checkpoint_conexoes_por_filho + lock_conn
+    assert total_por_filho == 4
 
-    assert domain_pool_size == 10
-    assert checkpoint_pool_size == 5
+    # Orçamento global:
+    api_connections = 10
+    num_workers = 1
+    filhos_por_worker = 4
+    margem = 4
+    max_connections = 100
 
-    # lock_conn sempre = 1 (conexao dedicada para advisory lock)
-    lock_conn_count = 1
-    assert lock_conn_count == 1
+    orcamento = api_connections + (num_workers * filhos_por_worker * total_por_filho) + margem
+    assert orcamento == 30
+    assert orcamento <= max_connections
 
 
 @pytest.mark.unit
@@ -582,26 +585,97 @@ def test_pool_sizes_respected():
 @pytest.mark.unit
 def test_calculate_pool_sizes_formula():
     """
-    Verifica a fórmula de dimensionamento dos pools.
-    domain_pool_size = num_workers * conexoes_por_worker + margem
-    checkpoint_pool_size = num_workers + 1
+    Verifica a fórmula de dimensionamento por processo e orçamento global:
+    - calculate_pool_sizes retorna os tamanhos constantes por processo filho
+    - calculate_global_connection_budget calcula o orçamento total global
     """
-    from src.infra.db.pools import calculate_pool_sizes
+    from src.infra.db.pools import calculate_global_connection_budget, calculate_pool_sizes
 
-    # Caso padrão: 4 workers, 2 conexões/worker, margem 2
-    domain_size, checkpoint_size = calculate_pool_sizes(num_workers=4)
-    assert domain_size == 10
-    assert checkpoint_size == 5
+    # Caso padrão: por processo filho Celery
+    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=2, checkpoint_conexoes_por_filho=1)
+    assert domain_size == 2
+    assert checkpoint_size == 1
 
-    # Caso: 1 worker (teste de deadlock)
-    domain_size, checkpoint_size = calculate_pool_sizes(num_workers=1)
-    assert domain_size == 4  # 1*2 + 2
-    assert checkpoint_size == 2  # 1 + 1
+    # Caso customizado por processo
+    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=4, checkpoint_conexoes_por_filho=2)
+    assert domain_size == 4
+    assert checkpoint_size == 2
 
-    # Caso: 8 workers, 3 conexões/worker, margem 3
-    domain_size, checkpoint_size = calculate_pool_sizes(num_workers=8, conexoes_por_worker=3, margem=3)
-    assert domain_size == 27  # 8*3 + 3
-    assert checkpoint_size == 9  # 8 + 1
+    # Orçamento global
+    # API 10 + (2 workers * 4 filhos * 4 conexões/filho) + margem 4 = 10 + 32 + 4 = 46
+    budget = calculate_global_connection_budget(
+        api_connections=10,
+        num_workers=2,
+        filhos_por_worker=4,
+        conexoes_por_filho=4,
+        margem=4,
+    )
+    assert budget == 46
+
+
+# ============================================================================
+# 8. Tradução de erros por SQLSTATE (_translate_db_error)
+# ============================================================================
+
+@pytest.mark.unit
+def test_translate_db_error_sqlstate_transient_and_permanent():
+    """
+    Valida a taxonomia estrita de tradução de erros por SQLSTATE:
+    - Conexão perdida (08xxx, 57P01/2/3) e deadlock (40P01, 40001) -> TransientError
+    - Autenticação (28xxx), config/syntax (42xxx), integridade (23xxx) -> PermanentError
+    - Desconhecido do driver -> PermanentError
+    - Exceções do domínio ou não-DB -> intocadas
+    """
+    from psycopg_pool import PoolTimeout
+    from src.domain.exceptions import PermanentError, TransientError
+    from src.infra.db.pools import _translate_db_error
+
+    # 1. PoolTimeout -> TransientError
+    timeout_exc = PoolTimeout("could not obtain connection within timeout")
+    res = _translate_db_error(timeout_exc)
+    assert isinstance(res, TransientError)
+
+    # Helper para criar psycopg.Error mock com sqlstate
+    def make_db_err(base_cls, sqlstate, msg="db error"):
+        err = base_cls(msg)
+        err.sqlstate = sqlstate
+        return err
+
+    import psycopg
+
+    # 2. Conexão perdida (08006, 08001, 57P01, 57P03) -> TransientError
+    for st in ["08006", "08001", "08003", "57P01", "57P02", "57P03"]:
+        err = make_db_err(psycopg.OperationalError, st, f"connection dropped {st}")
+        res = _translate_db_error(err)
+        assert isinstance(res, TransientError), f"SQLSTATE {st} deveria ser TransientError"
+
+    # 3. Deadlock e concorrência (40P01, 40001) -> TransientError
+    for st in ["40P01", "40001"]:
+        err = make_db_err(psycopg.OperationalError, st, f"deadlock {st}")
+        res = _translate_db_error(err)
+        assert isinstance(res, TransientError), f"SQLSTATE {st} deveria ser TransientError"
+
+    # 4. Autenticação e configuração (28P01, 3D000, 42P01, 53300) -> PermanentError
+    for st in ["28P01", "3D000", "42P01", "42601", "23505", "22001"]:
+        err = make_db_err(psycopg.ProgrammingError, st, f"auth/syntax error {st}")
+        res = _translate_db_error(err)
+        assert isinstance(res, PermanentError), f"SQLSTATE {st} deveria ser PermanentError"
+
+    # 5. Desconhecido de banco -> PermanentError
+    unknown_db = psycopg.Error("generic unknown db issue")
+    unknown_db.sqlstate = "99999"
+    res = _translate_db_error(unknown_db)
+    assert isinstance(res, PermanentError)
+
+    # 6. Exceção do domínio pré-existente não é re-embrulhada
+    t_orig = TransientError("already transient")
+    p_orig = PermanentError("already permanent")
+    assert _translate_db_error(t_orig) is t_orig
+    assert _translate_db_error(p_orig) is p_orig
+
+    # 7. Exceção da aplicação (ValueError) passa intocada
+    val_err = ValueError("app logic error")
+    assert _translate_db_error(val_err) is val_err
 
 
 # ============================================================================
