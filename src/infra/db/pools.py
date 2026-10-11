@@ -38,7 +38,8 @@ from contextlib import asynccontextmanager, contextmanager
 
 import psycopg
 from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool as PsycopgPool, PoolTimeout
+from psycopg_pool import ConnectionPool as PsycopgPool
+from psycopg_pool import PoolTimeout
 from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
     AsyncEngine,
     AsyncSession,
@@ -225,26 +226,26 @@ def _translate_db_error(exc: Exception, conn: psycopg.Connection | None = None) 
     - OperationalError, PoolTimeout, ou conexões caídas/fechadas -> TransientError
     - IntegrityError, DataError -> PermanentError
     """
-    if isinstance(exc, (TransientError, PermanentError)):
+    if isinstance(exc, TransientError | PermanentError):
         return exc
 
-    if isinstance(exc, (psycopg.OperationalError, PoolTimeout)):
-        err = TransientError(f"Erro transitorio de banco/conexao: {exc}")
-        err.__cause__ = exc
-        return err
+    if isinstance(exc, psycopg.OperationalError | PoolTimeout):
+        err_transient = TransientError(f"Erro transitorio de banco/conexao: {exc}")
+        err_transient.__cause__ = exc
+        return err_transient
 
     if isinstance(exc, psycopg.InterfaceError):
         # Conexão fechada/quebrada durante operação
         if conn is not None and (conn.closed or getattr(conn, "broken", False)):
-            err = TransientError(f"Conexao perdida/fechada: {exc}")
-            err.__cause__ = exc
-            return err
+            err_lost = TransientError(f"Conexao perdida/fechada: {exc}")
+            err_lost.__cause__ = exc
+            return err_lost
         return exc
 
-    if isinstance(exc, (psycopg.IntegrityError, psycopg.DataError)):
-        err = PermanentError(f"Erro permanente de dados/integridade: {exc}")
-        err.__cause__ = exc
-        return err
+    if isinstance(exc, psycopg.IntegrityError | psycopg.DataError):
+        err_perm = PermanentError(f"Erro permanente de dados/integridade: {exc}")
+        err_perm.__cause__ = exc
+        return err_perm
 
     return exc
 

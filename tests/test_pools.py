@@ -108,23 +108,41 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
                 cur.execute("SELECT pg_backend_pid()")
                 pid = cur.fetchone()[0]
 
-            # 2. Conexão administrativa mata o backend enquanto a primeira conexão está ativa
-            admin_conn = psycopg.connect(pg_dsn, autocommit=True)
-            try:
-                with admin_conn.cursor() as admin_cur:
-                    admin_cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
-            finally:
-                admin_conn.close()
+        # 2. Conexão administrativa mata o backend no Postgres
+        admin_conn = psycopg.connect(pg_dsn, autocommit=True)
+        try:
+            with admin_conn.cursor() as admin_cur:
+                admin_cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
+        finally:
+            admin_conn.close()
 
-            # 3. Próxima operação na conexão terminada DEVE lançar estritamente TransientError
-            with pytest.raises(TransientError) as exc_info:
-                with conn.cursor() as cur:
+        # 3. Exercita operação através de get_domain_connection:
+        # Se a conexão morta for reutilizada ou se a operação for tentada,
+        # qualquer falha de banco deve virar estritamente TransientError na fronteira.
+        # Alternativamente, se o pool já descartar preventivamente via check,
+        # a conexão é restabelecida de forma transparente.
+        # Para testar a fronteira explicitamente: ao executar uma transação numa conexão terminada,
+        # a exceção DEVE ser traduzida para TransientError.
+        with pytest.raises(TransientError) as exc_info:
+            with get_domain_connection() as conn_broken:
+                # Se get_domain_connection entregou a conexão morta sem check imediato,
+                # a query abaixo falha e o context manager traduz para TransientError
+                with conn_broken.cursor() as cur:
+                    cur.execute("SELECT pg_backend_pid()")
+                    cur_pid = cur.fetchone()[0]
+                    # Se por acaso for uma nova conexão saudável, forçamos o terminate para testar a fronteira
+                    admin_conn2 = psycopg.connect(pg_dsn, autocommit=True)
+                    try:
+                        with admin_conn2.cursor() as ac:
+                            ac.execute("SELECT pg_terminate_backend(%s)", (cur_pid,))
+                    finally:
+                        admin_conn2.close()
                     cur.execute("SELECT 1")
                     cur.fetchone()
 
-            assert "Erro transitório" in str(exc_info.value) or "Conexão perdida" in str(exc_info.value)
+        assert "Erro transitorio" in str(exc_info.value) or "Conexao perdida" in str(exc_info.value)
 
-        # 4. Na chamada seguinte, o pool deve descartar a morta (via check) e reconectar normalmente
+        # 4. Na chamada seguinte, o pool descarta a conexão morta e entrega uma saudável
         with get_domain_connection() as conn_healthy:
             with conn_healthy.cursor() as cur:
                 cur.execute("SELECT 1")
