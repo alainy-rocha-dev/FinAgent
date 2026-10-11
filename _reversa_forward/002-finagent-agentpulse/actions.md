@@ -115,7 +115,7 @@
 | T077 | Validação orçamento conexões: `conexões_API + (filhos × conexões_por_filho × workers) + margem ≤ max_connections` | T026, T043 | `[//]` | `docs/connection_budget.md` | 🟢 | `[ ]` |
 | T078 | Teste: matar conexões com `pg_terminate_backend` no meio de tarefa → retry/retomada sem duplicar | T026, T043, T048 | `[//]` | `tests/test_connection_loss.py` | 🟢 | `[ ]` |
 | T079 | Teste: reiniciar container Postgres com tarefas em voo → workers se recuperam sem reinício | T026, T043, T048 | `[//]` | `tests/test_postgres_restart.py` | 🟢 | `[ ]` |
-| T080 | Teste: pool tamanho mínimo com conexão de lock → nenhum deadlock | T026, T043, T048 | `[//]` | `tests/test_min_pool.py` | 🟢 | `[ ]` |
+| T080 | Teste: pool tamanho mínimo com conexão de lock → nenhum deadlock | T026 | `[//]` | `tests/test_min_pool.py` | 🟢 | `[ ]` |
 | T081 | Teste: número conexões abertas com N workers + API → dentro do orçamento | T026, T043, T048, T077 | `[//]` | `tests/test_connection_budget.py` | 🟢 | `[ ]` |
 | T082 | Teste: checkpointer com conexão sem autocommit falha claramente | T042 | `[//]` | `tests/test_checkpointer_config.py` | 🟢 | `[ ]` |
 | T083 | Validação spike: 0 duplicadas/perdidas nos **cenários S1-S4**, 100% retomadas do último checkpoint; **S5 comportamento definido e testado** | T048 | - | `spike_report.md` | 🟢 | `[ ]` |
@@ -127,13 +127,11 @@
 
 ## Notas de execução
 
-<!--
-Reservado para /reversa-coding registrar avisos ou observações que surgiram durante a execução.
-Não use isso para corrigir ações, edits manuais ficam fora desse arquivo, vão direto no código.
--->
+- **2026-10-11**: T080 (teste de pool com tamanho mínimo sem deadlock) desvinculado do portão de retomada T048 e T043. Justificativa: o teste valida exclusivamente a integridade da camada de infraestrutura de pools (T026), não dependendo do grafo de retomada nem dos workers Celery.
 
 ## Histórico de alterações
 
 | Data | Alteração | Autor |
 |------|-----------|-------|
 | 2026-10-07 | Versão inicial gerada por `/reversa-to-do` | reversa |
+| 2026-10-11 | T080 adiantado para dependência direta de T026 (infra de pools) | reversa |

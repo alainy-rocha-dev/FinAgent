@@ -1,5 +1,5 @@
 """
-Interfaces de repositório do domínio (D-01).
+Interfaces de repositório e Unidade de Trabalho do domínio (D-01).
 
 O domínio define os contratos (ABCs/Protocols) que a infraestrutura deve implementar.
 NENHUM tipo de driver (psycopg, asyncpg, SQLAlchemy) pode aparecer aqui.
@@ -7,22 +7,11 @@ NENHUM tipo de driver (psycopg, asyncpg, SQLAlchemy) pode aparecer aqui.
 
 from __future__ import annotations
 
+import types
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
-
-# ============================================================================
-# Protocolo de conexão abstrato (sem dependência de driver)
-# ============================================================================
-
-class DomainConnection(Protocol):
-    """Protocolo de conexão abstrato para o domínio. Implementado pela infraestrutura."""
-    def cursor(self, *, row_factory: Any = None) -> Any: ...
-    def commit(self) -> None: ...
-    def rollback(self) -> None: ...
-    def close(self) -> None: ...
 
 
 # ============================================================================
@@ -157,7 +146,7 @@ class IdempotencyRepo(ABC):
 
 
 # ============================================================================
-# Factory protocol para injeção de dependência
+# Unit of Work abstrata e Container de Repositórios
 # ============================================================================
 
 @dataclass
@@ -168,3 +157,37 @@ class Repositories:
     published: PublishedRepo
     events: EventsRepo
     idempotency: IdempotencyRepo
+
+
+class UnitOfWork(ABC):
+    """
+    Unidade de Trabalho abstrata para gerenciar transações no domínio.
+    Uso:
+        with uow:
+            uow.tasks.create(...)
+            uow.events.append(...)
+            uow.commit()
+    """
+    tasks: TasksRepo
+    market: MarketRepo
+    quant: QuantRepo
+    published: PublishedRepo
+    events: EventsRepo
+    idempotency: IdempotencyRepo
+
+    @abstractmethod
+    def __enter__(self) -> UnitOfWork: ...
+
+    @abstractmethod
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None: ...
+
+    @abstractmethod
+    def commit(self) -> None: ...
+
+    @abstractmethod
+    def rollback(self) -> None: ...

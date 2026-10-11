@@ -83,58 +83,55 @@ def test_pool_sizing_no_deadlock_on_lock_conn():
 @pytest.mark.integration
 def test_pg_terminate_backend_reconnects(pg_dsn):
     """
-    Derruba uma conexao do pool no meio do uso.
-    O erro deve virar erro de conexao transitorio e o pool deve reconectar.
-    Requer Postgres real rodando.
+    Derruba uma conexão no meio da operação via pg_terminate_backend.
+    Exigência estrita:
+    1. A operação na conexão morta DEVE falhar como TransientError (sem mascarar como OperationalError).
+    2. O pool com check ativo descarta a conexão quebrada e a próxima chamada
+       obtém uma conexão saudável com sucesso.
     """
     import psycopg
-    from psycopg_pool import ConnectionPool
+    from src.infra.db.pools import (
+        init_worker_pools,
+        close_worker_pools,
+        get_domain_connection,
+    )
+    from src.infra.exceptions import TransientError
 
-    # Cria pool inicial com reconnect_timeout curto para detectar conexoes mortas rapido
-    pool = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=5.0, reconnect_timeout=1.0)
+    os.environ["DATABASE_URL"] = pg_dsn
+    close_worker_pools()
+    init_worker_pools(domain_pool_size=2, checkpoint_pool_size=2, pool_timeout=5.0)
+
     try:
-        # Pega uma conexao e obtem o PID do backend
-        conn = pool.getconn()
-        with conn.cursor() as cur:
-            cur.execute("SELECT pg_backend_pid()")
-            pid = cur.fetchone()[0]
-        pool.putconn(conn)
-
-        # Derruba via pg_terminate_backend
-        admin_conn = psycopg.connect(pg_dsn, autocommit=True)
-        with admin_conn.cursor() as cur:
-            cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
-        admin_conn.close()
-
-        # Aguarda para o pool detectar a conexao morta
-        import time
-        time.sleep(1.0)
-
-        # Tenta obter uma conexao nova do pool - deve funcionar apos o pool limpar a morta
-        # O pool deve detectar a conexao morta e criar uma nova
-        conn = pool.getconn()
-        try:
+        # 1. Pega conexão e captura o PID do backend no Postgres
+        with get_domain_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-            assert cur.fetchone()[0] == 1
-        finally:
-            pool.putconn(conn)
-    finally:
-        pool.close()
+                cur.execute("SELECT pg_backend_pid()")
+                pid = cur.fetchone()[0]
 
-    # Teste adicional: cria um pool NOVO apos o terminate_backend
-    # para verificar que o banco ainda aceita conexoes novas
-    pool2 = ConnectionPool(min_size=1, max_size=3, conninfo=pg_dsn, timeout=5.0)
-    try:
-        conn = pool2.getconn()
-        try:
-            with conn.cursor() as cur:
+            # 2. Conexão administrativa mata o backend enquanto a primeira conexão está ativa
+            admin_conn = psycopg.connect(pg_dsn, autocommit=True)
+            try:
+                with admin_conn.cursor() as admin_cur:
+                    admin_cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
+            finally:
+                admin_conn.close()
+
+            # 3. Próxima operação na conexão terminada DEVE lançar estritamente TransientError
+            with pytest.raises(TransientError) as exc_info:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                    cur.fetchone()
+
+            assert "Erro transitório" in str(exc_info.value) or "Conexão perdida" in str(exc_info.value)
+
+        # 4. Na chamada seguinte, o pool deve descartar a morta (via check) e reconectar normalmente
+        with get_domain_connection() as conn_healthy:
+            with conn_healthy.cursor() as cur:
                 cur.execute("SELECT 1")
-            assert cur.fetchone()[0] == 1
-        finally:
-            pool2.putconn(conn)
+                assert cur.fetchone()[0] == 1
+
     finally:
-        pool2.close()
+        close_worker_pools()
 
 
 # ============================================================================

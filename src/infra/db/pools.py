@@ -38,7 +38,7 @@ from contextlib import asynccontextmanager, contextmanager
 
 import psycopg
 from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool as PsycopgPool
+from psycopg_pool import ConnectionPool as PsycopgPool, PoolTimeout
 from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
     AsyncEngine,
     AsyncSession,
@@ -47,6 +47,7 @@ from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
 )
 
 from src.infra.config import get_config
+from src.infra.exceptions import PermanentError, TransientError
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,7 @@ def init_worker_pools(
             max_size=domain_pool_size,
             conninfo=dsn,
             timeout=pool_timeout,
+            check=PsycopgPool.check_connection,
             kwargs={"autocommit": False},
         )
 
@@ -184,6 +186,7 @@ def init_worker_pools(
             max_size=checkpoint_pool_size,
             conninfo=dsn,
             timeout=pool_timeout,
+            check=PsycopgPool.check_connection,
             kwargs={"autocommit": True, "row_factory": dict_row},
         )
 
@@ -216,30 +219,73 @@ def close_worker_pools() -> None:
         logger.info("Worker pools closed")
 
 
+def _translate_db_error(exc: Exception, conn: psycopg.Connection | None = None) -> Exception:
+    """
+    Traduz exceções de banco para a taxonomia do domínio/infra:
+    - OperationalError, PoolTimeout, ou conexões caídas/fechadas -> TransientError
+    - IntegrityError, DataError -> PermanentError
+    """
+    if isinstance(exc, (TransientError, PermanentError)):
+        return exc
+
+    if isinstance(exc, (psycopg.OperationalError, PoolTimeout)):
+        err = TransientError(f"Erro transitorio de banco/conexao: {exc}")
+        err.__cause__ = exc
+        return err
+
+    if isinstance(exc, psycopg.InterfaceError):
+        # Conexão fechada/quebrada durante operação
+        if conn is not None and (conn.closed or getattr(conn, "broken", False)):
+            err = TransientError(f"Conexao perdida/fechada: {exc}")
+            err.__cause__ = exc
+            return err
+        return exc
+
+    if isinstance(exc, (psycopg.IntegrityError, psycopg.DataError)):
+        err = PermanentError(f"Erro permanente de dados/integridade: {exc}")
+        err.__cause__ = exc
+        return err
+
+    return exc
+
+
 @contextmanager
 def get_domain_connection() -> Generator[psycopg.Connection, None, None]:
-    """Obtém conexão do domain_pool (transacional)."""
+    """Obtém conexão do domain_pool (transacional) com tradução de erros na fronteira."""
     if _domain_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")
-    conn = _domain_pool.getconn()
+    try:
+        conn = _domain_pool.getconn()
+    except Exception as e:
+        raise _translate_db_error(e) from e
+
     try:
         yield conn
         conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise _translate_db_error(e, conn) from e
     finally:
         _domain_pool.putconn(conn)
 
 
 @contextmanager
 def get_checkpoint_connection() -> Generator[psycopg.Connection, None, None]:
-    """Obtém conexão do checkpoint_pool (autocommit + dict_row)."""
+    """Obtém conexão do checkpoint_pool (autocommit + dict_row) com tradução de erros na fronteira."""
     if _checkpoint_pool is None:
         raise RuntimeError("Worker pools not initialized. Call init_worker_pools() first.")
-    conn = _checkpoint_pool.getconn()
+    try:
+        conn = _checkpoint_pool.getconn()
+    except Exception as e:
+        raise _translate_db_error(e) from e
+
     try:
         yield conn
+    except Exception as e:
+        raise _translate_db_error(e, conn) from e
     finally:
         _checkpoint_pool.putconn(conn)
 
