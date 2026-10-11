@@ -314,7 +314,7 @@ def test_pool_below_minimum_times_out(pg_dsn):
     a aquisição da conexão para a transação deve falhar por timeout de pool,
     sendo traduzida rigorosamente em TransientError na fronteira da infraestrutura.
     """
-    from src.infra.exceptions import TransientError
+    from src.domain.exceptions import TransientError
 
     os.environ["DATABASE_URL"] = pg_dsn
     close_worker_pools()

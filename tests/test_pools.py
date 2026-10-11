@@ -95,7 +95,7 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
         close_worker_pools,
         get_domain_connection,
     )
-    from src.infra.exceptions import TransientError
+    from src.domain.exceptions import TransientError
 
     os.environ["DATABASE_URL"] = pg_dsn
     close_worker_pools()

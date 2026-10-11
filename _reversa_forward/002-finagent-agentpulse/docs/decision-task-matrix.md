@@ -10,8 +10,8 @@
 
 | Decisão | Descrição | Tarefa(s) Executora(s) | Status |
 |---------|-----------|------------------------|--------|
-| D-01 | Domínio não cria pools; infra dona dos pools (API async + Worker 2 pools psycopg + lock conn) | T026, T027, T041, T049-T054, T088 | `[ ]` |
-| D-02 | Advisory lock de sessão por `task_id` em conexão dedicada (fallback: lease em `tasks`) | T026, T031, T041, T043 | `[ ]` |
+| D-01 | Domínio não cria pools; infra dona dos pools (API async + Worker 2 pools psycopg + lock conn) | T026, T027, T041, T049-T054, T080, T088 | `[ ]` |
+| D-02 | Advisory lock de sessão por `task_id` em conexão dedicada (fallback: lease em `tasks`) | T026, T031, T041, T043, T080 | `[ ]` |
 | D-03 | Pools criados em `worker_process_init` / fechados em `worker_process_shutdown` | T026, T030, T043 | `[ ]` |
 | D-04 | `data_quality` = LIVE \| STALE \| SIMULATED (3 valores); STALE por classe de ativo (dias) | T024, T038, T050 | `[ ]` |
 | D-05 | `acknowledge_simulated` flag; `APP_ENV=prod` sempre bloqueia SIMULATED; prod recusa iniciar se `ALLOW_SIMULATED_PUBLICATION=true` | T028, T039, T050 | `[ ]` |

@@ -47,8 +47,8 @@ from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
     create_async_engine,
 )
 
+from src.domain.exceptions import PermanentError, TransientError
 from src.infra.config import get_config
-from src.infra.exceptions import PermanentError, TransientError
 
 logger = logging.getLogger(__name__)
 
