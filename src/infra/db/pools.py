@@ -2,7 +2,7 @@
 Pools de conexão da infraestrutura AgentPulse.
 
 Separação por papel de processo (D-01, D-02, D-03):
-- API (assíncrona): SQLAlchemy async + asyncpg
+- API (síncrona): psycopg_pool.ConnectionPool
 - Worker (prefork, síncrono): dois pools psycopg + conexão dedicada para lock
   - domain_pool: transacional (market_payloads, published, tasks, task_events)
   - checkpoint_pool: autocommit + dict_row (exigido pelo PostgresSaver do LangGraph)
@@ -32,28 +32,21 @@ import hashlib
 import logging
 import threading
 import uuid
-from collections.abc import AsyncGenerator, Generator
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import Generator
+from contextlib import contextmanager
 
 import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool as PsycopgPool
 from psycopg_pool import PoolTimeout
-from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-
+from sqlalchemy import create_engine, Engine
 from src.domain.exceptions import PermanentError, TransientError
 from src.infra.config import get_config
 
 logger = logging.getLogger(__name__)
 
 # Estado global dos pools (setado em worker_process_init / startup da API)
-_async_engine: AsyncEngine | None = None
-_async_session_factory: async_sessionmaker[AsyncSession] | None = None
+_pool_api: PsycopgPool | None = None
 
 _domain_pool: PsycopgPool | None = None
 _checkpoint_pool: PsycopgPool | None = None
@@ -135,47 +128,47 @@ def _build_dsn() -> str:
     return cfg.database_url
 
 
+_pool_api: PsycopgPool | None = None
+
+
 def init_api_pools() -> None:
-    """Inicializa pools da API (assíncrona). Chamado no startup do FastAPI."""
-    global _async_engine, _async_session_factory
+    """Inicializa pool da API (síncrono). Chamado no startup da API."""
+    global _pool_api
     dsn = _build_dsn()
-    # Converte para asyncpg DSN se necessário
-    async_dsn = dsn.replace("postgresql://", "postgresql+asyncpg://")
-    _async_engine = create_async_engine(
-        async_dsn,
-        pool_size=10,
-        max_overflow=20,
-        pool_pre_ping=True,
-        echo=False,
+    _pool_api = PsycopgPool(
+        min_size=1,
+        max_size=10,
+        conninfo=dsn,
+        timeout=5.0,
+        check=PsycopgPool.check_connection,
+        kwargs={"autocommit": False},
     )
-    _async_session_factory = async_sessionmaker(
-        _async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    logger.info("API pools initialized (asyncpg)")
+    logger.info("API pool initialized (psycopg_pool)")
 
 
-async def close_api_pools() -> None:
-    """Fecha pools da API. Chamado no shutdown do FastAPI."""
-    global _async_engine, _async_session_factory
-    if _async_engine:
-        await _async_engine.dispose()
-        _async_engine = None
-        _async_session_factory = None
-        logger.info("API pools closed")
+def close_api_pools() -> None:
+    """Fecha pool da API. Chamado no shutdown da API."""
+    global _pool_api
+    if _pool_api:
+        _pool_api.close()
+        _pool_api = None
+        logger.info("API pool closed")
 
 
-@asynccontextmanager
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """Obtém sessão assíncrona para operações da API."""
-    if _async_session_factory is None:
-        raise RuntimeError("API pools not initialized. Call init_api_pools() first.")
-    async with _async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+@contextmanager
+def get_api_session() -> Generator[psycopg.Connection, None, None]:
+    """Obtém conexão do pool da API (síncrona) para operações da API."""
+    global _pool_api
+    if _pool_api is None:
+        raise RuntimeError("API pool not initialized. Call init_api_pools() first.")
+    try:
+        conn = _pool_api.getconn()
+    except Exception as e:
+        raise _translate_db_error(e) from e
+    try:
+        yield conn
+    finally:
+        _pool_api.putconn(conn)
 
 
 def init_worker_pools(
@@ -409,4 +402,3 @@ def release_advisory_lock(task_id: str, lock_conn: psycopg.Connection) -> None:
 
 # Registro de cleanup automático (fallback)
 atexit.register(close_worker_pools)
-atexit.register(lambda: None)  # placeholder para close_api_pools (async)

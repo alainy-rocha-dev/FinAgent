@@ -41,8 +41,14 @@
 | T023 | Criar migrações SQL: 009_langgraph_checkpointer.sql (PostgresSaver) | T016 | - | `migrations/009_langgraph_checkpointer.sql` | 🟢 | `[ ]` |
 | T024 | Criar migrações SQL: 010_add_stale_config.sql | T016 | - | `migrations/010_add_stale_config.sql` | 🟢 | `[ ]` |
 | T025 | Scaffold: estrutura de pastas `src/infra/` (pools, repositórios, checkpointer) | T001, T002 | - | `src/infra/__init__.py` | 🟢 | `[X]` |
-| T026 | Scaffold: `src/infra/db/pools.py` — pools async (API) + psycopg (worker: domain_pool, checkpoint_pool, lock_conn) | T025 | - | `src/infra/db/pools.py` | 🟢 | `[X]` |
-| T027 | Scaffold: `src/infra/db/repositories.py` — repositórios injetados no domínio (TasksRepo, MarketRepo, QuantRepo, PublishedRepo, EventsRepo, IdempotencyRepo) | T025 | - | `src/infra/db/repositories.py` | 🟢 | `[ ]` |
+| T026 | Scaffold: `src/infra/db/pools.py` — pools psycopg_pool síncronos (API e worker: domain_pool, checkpoint_pool, lock_conn) | T025 | - | `src/infra/db/pools.py` | 🟢 | `[X]` |
+| T026b | Substituir pool da API de async (SQLAlchemy + asyncpg) por psycopg_pool síncrono; remover asyncpg do pyproject.toml; SQLAlchemy só no grupo de migração; atualizar calculate_pool_sizes e testes de dimensionamento; regenerar requirements.lock no CI; adicionar teste arquitetural que falha se async patterns aparecerem em src/infra/db | T026 | - | `src/infra/db/pools.py` | 🟢 | `[ ]` |
+| T027a | Migrações Alembic mínimas: colunas tasks (status, attempts, heartbeat_at, event_seq, terminal_at NULLABLE) e task_events (seq, UNIQUE task_id, seq); contador de efeitos; ciclo upgrade/downgrade/upgrade com diff de pg_dump vazio; banco de teste só pelas migrações | T026 | - | migrations/ | 🟢 | `[ ]` |
+| T027b | Triggers de imutabilidade (linha e TRUNCATE), retention_log append-only, testes nos três atores e pg_proc.proconfig | T027a, T048 | - | migrations/ | 🟢 | `[ ]` |
+| T027c | Função de retenção (SECURITY DEFINER, advisory lock, -1 e SKIPPED_LOCKED gravado pela função, runner sempre COMMIT em -1), testes de volume, de lock retido e de dois runners | T027b, T048 | - | migrations/ | 🟢 | `[ ]` |
+| T027d | UnitOfWork e repositórios mínimos: TasksRepo com UPDATE condicional com RETURNING e event_seq, EventsRepo sem update/delete, idempotência com ON CONFLICT | T027a, T026b | - | src/infra/db/repositories.py | 🟢 | `[ ]` |
+| T027e | Concorrência (50 conexões × 20 rodadas, Barrier) e rollback entre UPDATE e INSERT do evento | T027d, T027f, T048 | - | tests/ | 🟢 | `[ ]` |
+| T027f | UnitOfWork e repositórios completos: MarketRepo, PublishedRepo, QuantRepo, IdempotencyRepo sobre as migrações; inclui tabelas market_payloads, quant_metrics, published, idempotency, retention_log | T026b, T027a, T048 | - | src/infra/db/repositories.py | 🟢 | `[ ]` |
 | T028 | Scaffold: `src/infra/config.py` — carrega `config/defaults.yaml` + env vars, valida 28 parâmetros | T001, T025 | - | `src/infra/config.py` | 🟢 | `[ ]` |
 
 ## Fase 2, Testes
@@ -66,17 +72,17 @@
 
 | ID | Descrição | Dependências | Paralelismo | Arquivo alvo | Confidência | Status |
 |----|-----------|--------------|-------------|--------------|-------------|--------|
-| T041 | Implementar `task-state-machine` — transições atômicas, advisory lock, motivos legíveis, estados terminais | T016, T017, T026, T027 | - | `src/infra/state_machine.py` | 🟢 | `[ ]` |
-| T042 | Implementar `langgraph-checkpointer` — PostgresSaver com `checkpoint_pool` (autocommit + dict_row), `graph_version` | T023, T026, T027 | - | `src/infra/checkpointer.py` | 🟢 | `[ ]` |
-| T043 | Implementar `worker-queue` — Celery acks_late, task_reject_on_worker_lost, prefetch=1, reaper (beat + lock), heartbeat thread | T026, T027, T028 | - | `src/infra/worker_queue.py` | 🟢 | `[ ]` |
+| T041 | Implementar `task-state-machine` — transições atômicas, advisory lock, motivos legíveis, estados terminais | T016, T017, T026, T027d | - | `src/infra/state_machine.py` | 🟢 | `[ ]` |
+| T042 | Implementar `langgraph-checkpointer` — PostgresSaver com `checkpoint_pool` (autocommit + dict_row), `graph_version` | T023, T026, T027d | - | `src/infra/checkpointer.py` | 🟢 | `[ ]` |
+| T043 | Implementar `worker-queue` — Celery acks_late, task_reject_on_worker_lost, prefetch=1, reaper (beat + lock), heartbeat thread | T026, T027d, T028 | - | `src/infra/worker_queue.py` | 🟢 | `[ ]` |
 | T044 | Implementar `ci-quality` — workflow PR (ruff, mypy, unit, integração, coverage 85%, pip-audit); fumaça caos em críticos; noturno 100 execs | T002, T028 | - | `.github/workflows/ci.yml` | 🟢 | `[ ]` |
 | T045 | Spike de retomada: grafo 2 nós (collector→quant), `interrupt()`, Celery, Postgres, contador efeitos | T041, T042, T043 | - | `tests/chaos/resume_spike.py` | 🟢 | `[ ]` |
 | T046 | Spike de retomada: harness mínimo caos C1 (kill após checkpoint quant) + C2 (kill entre interrupt e retomada) | T045 | - | `tests/chaos/harness_c1_c2.py` | 🟢 | `[ ]` |
 | T047 | Spike de retomada: instrumentação contadores (S1-S5) + relatório do spike | T046 | - | `tests/chaos/spike_report.py` | 🟢 | `[ ]` |
 | T048 | **Portão de decisão**: avaliar spike — 0 duplicadas/perdidas nos **cenários S1-S4**, 100% retomadas do último checkpoint; **S5 com comportamento definido e testado** (409 ou resposta idempotente conforme spec) | T047 | - | `docs/spike_decision.md` | 🟢 | `[ ]` |
-| T049 | Implementar `budget-control` — teto por tarefa + mensal global; modelos separados; stub LLM; serviço injetado | T028, T027 | - | `src/domain/budget_control.py` | 🟢 | `[ ]` |
-| T050 | Implementar `data-collector` — provider protocol plugável (Yahoo/BCB/Mock); `data_quality` 3 valores; `stale_max_age_days` por classe; `market_payloads` ON CONFLICT | T011, T012, T027, T049 | - | `src/domain/data_collector.py` | 🟢 | `[ ]` |
-| T051 | Implementar `quant-analyst` — métricas determinísticas; `METRICS_REGISTRY` no código como fonte única; testes golden contra planilha | T027, T049 | - | `src/domain/quant_analyst.py` | 🟢 | `[ ]` |
+| T049 | Implementar `budget-control` — teto por tarefa + mensal global; modelos separados; stub LLM; serviço injetado | T028, T027d | - | `src/domain/budget_control.py` | 🟢 | `[ ]` |
+| T050 | Implementar `data-collector` — provider protocol plugável (Yahoo desligado por padrão, BCB/Mock); `data_quality` 3 valores; `stale_max_age_days` por classe; `market_payloads` ON CONFLICT | T011, T012, T027f, T049 | - | `src/domain/data_collector.py` | 🟢 | `[ ]` |
+| T051 | Implementar `quant-analyst` — métricas determinísticas; `METRICS_REGISTRY` no código como fonte única; testes golden contra planilha | T027f, T049 | - | `src/domain/quant_analyst.py` | 🟢 | `[ ]` |
 | T052 | Testes golden: `test_quant_golden.py` — compara saída com planilha de referência | T051 | - | `tests/test_quant_golden.py` | 🟢 | `[ ]` |
 | T053 | Implementar `analysis-graph` — grafo completo: Planner→Collector→Quant→Redator→Auditoria→Revisor→AuditGate→PrepareReview→AwaitApproval→Publish; checkpointer Postgres; `graph_version` | T041, T042, T048, T050, T051 | - | `src/infra/analysis_graph.py` | 🟢 | `[ ]` |
 | T054 | Implementar `numeric-audit` — validador `isclose` + formato; classes mutação 7; 30 efetivas/classe; 50 limpos FP=0 | T051, T053 | - | `src/domain/numeric_audit.py` | 🟢 | `[ ]` |
@@ -86,10 +92,10 @@
 
 | ID | Descrição | Dependências | Paralelismo | Arquivo alvo | Confidência | Status |
 |----|-----------|--------------|-------------|--------------|-------------|--------|
-| T056 | Implementar `task-api` — FastAPI async; Idempotency-Key por `api_key_id`; roles analyst/approver (403 cruzado); limite ativas por chave | T010, T018, T022, T027, T028, T041, T048 | - | `src/api/tasks_api.py` | 🟢 | `[ ]` |
-| T057 | Implementar `audit-trail` — `task_events` com hash encadeado; roles segregados (app_user/retention_role/migrator); retenção 365d | T017, T027, T041, T048 | - | `src/infra/audit_trail.py` | 🟢 | `[ ]` |
+| T056 | Implementar `task-api` — FastAPI sync (def) com psycopg_pool; Idempotency-Key por `api_key_id`; roles analyst/approver (403 cruzado); limite ativas por chave | T010, T018, T022, T027f, T028, T041, T048 | - | `src/api/tasks_api.py` | 🟢 | `[ ]` |
+| T057 | Implementar `audit-trail` — `task_events` com hash encadeado; roles segregados (app_user/retention_role/migrator); retenção 365d | T017, T027d, T041, T048 | - | `src/infra/audit_trail.py` | 🟢 | `[ ]` |
 | T058 | Implementar `approval-flow` — `X-Snapshot-Hash` obrigatório; TTL 7d → EXPIRED; reject_reason enum; `await_approval` sem efeitos | T017, T041, T048, T056 | - | `src/infra/approval_flow.py` | 🟢 | `[ ]` |
-| T059 | Implementar `publication` — tabela `published` UNIQUE; Publisher transacional (INSERT + UPDATE + evento); conferência hash | T021, T027, T048, T057, T058 | - | `src/infra/publication.py` | 🟢 | `[ ]` |
+| T059 | Implementar `publication` — tabela `published` UNIQUE; Publisher transacional (INSERT + UPDATE + evento); conferência hash | T021, T027f, T027d, T048, T057, T058 | - | `src/infra/publication.py` | 🟢 | `[ ]` |
 | T060 | ADR 001: esqueleto MADR **Proposed** — contexto, decisão (Celery), consequências, **tabela de evidência do spike vazia**, status mantido Proposed até noturnas | T048 | - | `docs/adr/001-celery-vs-temporal.md` | 🟡 | `[ ]` |
 | T061 | Implementar `observability` — OTEL traces API→Celery→nós; propagação custom Celery signals; métricas Prometheus; Grafana JSON; failpoints test-only | T028, T043, T044, T048 | - | `src/infra/observability.py` | 🟢 | `[ ]` |
 | T062 | Ampliar harness caos para 100 execuções C1-C5, métricas reais (entregas>1, hash divergente), pytest idempotência, Locust vazão | T046, T044, T048, T061 | - | `tests/chaos/full_harness.py` | 🟢 | `[ ]` |
