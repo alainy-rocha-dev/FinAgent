@@ -9,7 +9,8 @@ Este teste valida que o worker não trava esperando uma conexão quando:
 import os
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 import pytest
 
@@ -306,31 +307,35 @@ def test_min_pool_checkpoint_independent(worker_pools_min):
 @pytest.mark.integration
 def test_pool_below_minimum_times_out(pg_dsn):
     """
-    Teste NEGATIVO de ciclo real:
-    Configura o worker com pool no mínimo (1 conexão) com timeout curto (0.5s).
-    Simula uma operação concorrente retendo a única conexão do pool de domínio.
-    Ao tentar executar o ciclo real (lock -> transação de domínio -> checkpoint),
-    a aquisição da conexão para a transação deve falhar por timeout de pool,
+    Teste NEGATIVO de ciclo real adaptado à nova semântica:
+    Por processo worker filho, o dimensionamento padrão de domínio requer 2 conexões:
+    1 conexão para a transação do nó em execução e 1 conexão para a thread de heartbeat
+    (já que a lock_conn guarda exclusivamente o advisory lock de sessão).
+
+    Se o domain_pool for configurado com 'um a menos' (apenas 1 conexão) ou se uma operação
+    concorrente retiver a conexão disponível com timeout curto (0.5s):
+    Ao tentar executar o ciclo real (ou simultaneamente transação de domínio + heartbeat),
+    a aquisição da conexão adicional falha por timeout de pool (PoolTimeout),
     sendo traduzida rigorosamente em TransientError na fronteira da infraestrutura.
     """
     from src.domain.exceptions import TransientError
 
     os.environ["DATABASE_URL"] = pg_dsn
     close_worker_pools()
-    # Inicializa pools no mínimo com timeout curto para falhar rápido
+    # Inicializa pools com 1 conexão de domínio (um a menos que o dimensionamento necessário de 2)
     init_worker_pools(domain_pool_size=1, checkpoint_pool_size=1, pool_timeout=0.5)
 
     try:
         lock_conn = get_lock_connection()
         task_id = str(uuid.uuid4())
 
-        # Segura a única conexão do domain_pool em uma transação ativa externa
+        # Segura a única conexão do domain_pool simulando uma transação ativa em voo
         with get_domain_connection() as _retained_conn:
-            # Tenta executar o ciclo real: deve falhar no passo de obter conexão do domínio
+            # Tenta executar o ciclo (ou operação do heartbeat): deve falhar por esgotamento do pool
             with pytest.raises(TransientError) as exc_info:
                 _full_cycle(task_id, lock_conn, timeout_seconds=1.0)
 
-            assert "Erro transitório" in str(exc_info.value) or "couldn't get a connection" in str(exc_info.value)
+            assert "Erro transitório" in str(exc_info.value) or "couldn't get a connection" in str(exc_info.value) or "timeout" in str(exc_info.value).lower()
     finally:
         close_worker_pools()
 

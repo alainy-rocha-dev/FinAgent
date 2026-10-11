@@ -11,6 +11,9 @@ Separação por papel de processo (D-01, D-02, D-03):
 Fórmula de dimensionamento e orçamento de conexões:
 - Por processo worker (constante por processo filho Celery):
   - domain_pool: min_size=1, max_size=conexoes_por_filho (padrão 2)
+    * Razão de 2 conexões mínimas: 1 conexão fica presa na transação do nó do grafo,
+      enquanto a 2ª conexão é usada pela thread de heartbeat para atualizar 'heartbeat_at'
+      e renovar o lease da task em 'tasks' (dependência do reaper para não considerar worker morto).
   - checkpoint_pool: min_size=1, max_size=conexoes_checkpoint_por_filho (padrão 1)
   - lock_conn: 1 conexão dedicada para advisory lock por task_id
   - Total por processo worker filho = 2 + 1 + 1 = 4 conexões
@@ -266,22 +269,34 @@ def _translate_db_error(exc: Exception, conn: psycopg.Connection | None = None) 
     if sqlstate is not None:
         sqlstate_str = str(sqlstate).upper()
 
-        # 1. Conexão perdida / shutdown / falha de rede:
-        # 08xxx (Connection Exception), 57P01 (admin_shutdown), 57P02 (crash_shutdown), 57P03 (cannot_connect_now)
-        # 53200 (too_many_connections - transitório sob carga)
-        # 40P01 (deadlock_detected), 40001 (serialization_failure)
+        # 08P01 (protocol_violation) é violação de protocolo (bug/incompatibilidade);
+        # não adianta retry, deve ser PermanentError mesmo iniciando com 08.
+        if sqlstate_str == "08P01":
+            err_proto = PermanentError(f"Erro permanente de protocolo (SQLSTATE {sqlstate_str}): {exc}")
+            err_proto.__cause__ = exc
+            return err_proto
+
+        # 1. Transitórios:
+        # - Conexão perdida: 08xxx (Connection Exception, exceto 08P01)
+        # - Shutdown de servidor: 57P01 (admin_shutdown), 57P02 (crash_shutdown), 57P03 (cannot_connect_now)
+        # - Query cancelada: 57014 (query_canceled, ex: statement_timeout)
+        # - Sobrecarga de recursos / conexões: 53300 (too_many_connections), 53200 (out_of_memory)
+        # - Deadlock e concorrência: 40P01 (deadlock_detected), 40001 (serialization_failure)
         if (
             sqlstate_str.startswith("08")
-            or sqlstate_str in {"57P01", "57P02", "57P03", "40P01", "40001", "53200"}
+            or sqlstate_str in {"57P01", "57P02", "57P03", "57014", "40P01", "40001", "53300", "53200"}
         ):
-            err_trans = TransientError(f"Erro transitorio de conexao/deadlock (SQLSTATE {sqlstate_str}): {exc}")
+            err_trans = TransientError(f"Erro transitorio de conexao/concorrencia/recurso (SQLSTATE {sqlstate_str}): {exc}")
             err_trans.__cause__ = exc
             return err_trans
 
-        # 2. Autenticação, configuração, tabela ausente, credencial inválida, violação de integridade:
-        # 28xxx (invalid_authorization_specification), 3Dxxx (invalid_catalog_name / database does not exist)
-        # 42xxx (syntax_error_or_access_rule_violation), 23xxx (integrity_constraint_violation)
-        # 22xxx (data_exception)
+        # 2. Permanentes:
+        # - Autenticação: 28xxx (invalid_authorization_specification)
+        # - Catálogo/DB ausente: 3Dxxx (invalid_catalog_name)
+        # - Erro de sintaxe ou tabela ausente: 42xxx (syntax_error_or_access_rule_violation)
+        # - Violação de integridade: 23xxx (integrity_constraint_violation)
+        # - Erro de dados/tipo: 22xxx (data_exception)
+        # - Outros de recursos de configuração (classe 53 exceto 53200 e 53300)
         if (
             sqlstate_str.startswith("28")
             or sqlstate_str.startswith("3D")

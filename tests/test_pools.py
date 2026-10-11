@@ -12,13 +12,11 @@ Marcadores:
 - @pytest.mark.integration: testes de integracao (requer Postgres real)
 """
 import os
-import threading
 import uuid
-import hashlib
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
+import psycopg
 import pytest
-
 
 # ============================================================================
 # Fixtures e utilidades
@@ -93,12 +91,13 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
        obtém uma conexão saudável com sucesso.
     """
     import psycopg
+
+    from src.domain.exceptions import TransientError
     from src.infra.db.pools import (
-        init_worker_pools,
         close_worker_pools,
         get_domain_connection,
+        init_worker_pools,
     )
-    from src.domain.exceptions import TransientError
 
     os.environ["DATABASE_URL"] = pg_dsn
     close_worker_pools()
@@ -224,7 +223,7 @@ def test_advisory_lock_keys_different_uuids():
     from src.infra.db.pools import _advisory_lock_keys
 
     keys_seen = set()
-    for i in range(1000):
+    for _i in range(1000):
         task_id = str(uuid.uuid4())
         key1, key2 = _advisory_lock_keys(task_id)
         key_pair = (key1, key2)
@@ -258,6 +257,7 @@ def test_advisory_lock_two_consumers_same_task(pg_dsn):
     Lock deve ser liberado em finally mesmo com excecao.
     """
     import psycopg
+
     from src.infra.db.pools import acquire_advisory_lock, release_advisory_lock
 
     task_id = str(uuid.uuid4())
@@ -294,6 +294,7 @@ def test_advisory_lock_released_on_exception(pg_dsn):
     Se a tarefa levanta excecao, o lock deve ser liberado em finally.
     """
     import psycopg
+
     from src.infra.db.pools import acquire_advisory_lock, release_advisory_lock
 
     task_id = str(uuid.uuid4())
@@ -325,6 +326,7 @@ def test_advisory_lock_released_when_connection_dies(pg_dsn):
     Se a conexao morre (ex: processo morre), o Postgres libera o lock automaticamente.
     """
     import psycopg
+
     from src.infra.db.pools import acquire_advisory_lock
 
     task_id = str(uuid.uuid4())
@@ -618,15 +620,67 @@ def test_calculate_pool_sizes_formula():
 # ============================================================================
 
 @pytest.mark.unit
-def test_translate_db_error_sqlstate_transient_and_permanent():
+@pytest.mark.parametrize(
+    "sqlstate,exc_cls,expected_type,expected_label",
+    [
+        # Transitórios: conexão perdida (classe 08)
+        ("08001", psycopg.OperationalError, "transient", "sqlclient_unable_to_establish_sqlconnection"),
+        ("08006", psycopg.OperationalError, "transient", "connection_failure"),
+        # Transitórios: shutdown de servidor (classe 57P)
+        ("57P01", psycopg.OperationalError, "transient", "admin_shutdown"),
+        ("57P02", psycopg.OperationalError, "transient", "crash_shutdown"),
+        ("57P03", psycopg.OperationalError, "transient", "cannot_connect_now"),
+        # Transitórios: cancelamento por timeout (57014)
+        ("57014", psycopg.OperationalError, "transient", "query_canceled_statement_timeout"),
+        # Transitórios: concorrência e deadlock (classe 40)
+        ("40001", psycopg.OperationalError, "transient", "serialization_failure"),
+        ("40P01", psycopg.OperationalError, "transient", "deadlock_detected"),
+        # Transitórios: sobrecarga de conexões / memória (53300, 53200)
+        ("53300", psycopg.OperationalError, "transient", "too_many_connections"),
+        ("53200", psycopg.OperationalError, "transient", "out_of_memory"),
+        # Fronteira de classe 08: 08P01 violação de protocolo é PERMANENTE (bug)
+        ("08P01", psycopg.DatabaseError, "permanent", "protocol_violation"),
+        # Permanentes: autenticação / catálogo
+        ("28P01", psycopg.ProgrammingError, "permanent", "invalid_password"),
+        ("3D000", psycopg.ProgrammingError, "permanent", "invalid_catalog_name"),
+        # Permanentes: sintaxe / tabela inexistente
+        ("42P01", psycopg.ProgrammingError, "permanent", "undefined_table"),
+        ("42601", psycopg.ProgrammingError, "permanent", "syntax_error"),
+        # Permanentes: integridade e dados
+        ("23505", psycopg.IntegrityError, "permanent", "unique_violation"),
+        ("22001", psycopg.DataError, "permanent", "string_data_right_truncation"),
+        # Permanentes: outros erros de configuração classe 53 (ex: 53100 disk_full)
+        ("53100", psycopg.OperationalError, "permanent", "disk_full"),
+    ],
+)
+def test_translate_db_error_sqlstate_parametrized(sqlstate, exc_cls, expected_type, expected_label):
     """
-    Valida a taxonomia estrita de tradução de erros por SQLSTATE:
-    - Conexão perdida (08xxx, 57P01/2/3) e deadlock (40P01, 40001) -> TransientError
-    - Autenticação (28xxx), config/syntax (42xxx), integridade (23xxx) -> PermanentError
-    - Desconhecido do driver -> PermanentError
-    - Exceções do domínio ou não-DB -> intocadas
+    Testa cada classe de SQLSTATE garantindo a correta classificação entre TransientError e PermanentError.
+    """
+    from src.domain.exceptions import PermanentError, TransientError
+    from src.infra.db.pools import _translate_db_error
+
+    err = exc_cls(f"Error {expected_label} with sqlstate {sqlstate}")
+    err.sqlstate = sqlstate
+    res = _translate_db_error(err)
+
+    if expected_type == "transient":
+        assert isinstance(res, TransientError), f"SQLSTATE {sqlstate} ({expected_label}) deveria ser TransientError"
+    else:
+        assert isinstance(res, PermanentError), f"SQLSTATE {sqlstate} ({expected_label}) deveria ser PermanentError"
+
+
+@pytest.mark.unit
+def test_translate_db_error_boundary_and_non_db_exceptions():
+    """
+    Valida comportamentos de fronteira:
+    - PoolTimeout vira TransientError;
+    - Erro desconhecido do psycopg vira PermanentError;
+    - ValueError e exceções não-DB passam intocadas;
+    - Exceções já do domínio (TransientError, PermanentError) não são re-embrulhadas.
     """
     from psycopg_pool import PoolTimeout
+
     from src.domain.exceptions import PermanentError, TransientError
     from src.infra.db.pools import _translate_db_error
 
@@ -635,47 +689,21 @@ def test_translate_db_error_sqlstate_transient_and_permanent():
     res = _translate_db_error(timeout_exc)
     assert isinstance(res, TransientError)
 
-    # Helper para criar psycopg.Error mock com sqlstate
-    def make_db_err(base_cls, sqlstate, msg="db error"):
-        err = base_cls(msg)
-        err.sqlstate = sqlstate
-        return err
+    # 2. Erro desconhecido do psycopg (sem sqlstate ou com código desconhecido) -> PermanentError
+    unknown_err = psycopg.Error("generic unknown error from driver")
+    unknown_err.sqlstate = "99999"
+    res_unknown = _translate_db_error(unknown_err)
+    assert isinstance(res_unknown, PermanentError)
 
-    import psycopg
+    # 3. ValueError passa intocado
+    val_err = ValueError("app logic validation failed")
+    assert _translate_db_error(val_err) is val_err
 
-    # 2. Conexão perdida (08006, 08001, 57P01, 57P03) -> TransientError
-    for st in ["08006", "08001", "08003", "57P01", "57P02", "57P03"]:
-        err = make_db_err(psycopg.OperationalError, st, f"connection dropped {st}")
-        res = _translate_db_error(err)
-        assert isinstance(res, TransientError), f"SQLSTATE {st} deveria ser TransientError"
-
-    # 3. Deadlock e concorrência (40P01, 40001) -> TransientError
-    for st in ["40P01", "40001"]:
-        err = make_db_err(psycopg.OperationalError, st, f"deadlock {st}")
-        res = _translate_db_error(err)
-        assert isinstance(res, TransientError), f"SQLSTATE {st} deveria ser TransientError"
-
-    # 4. Autenticação e configuração (28P01, 3D000, 42P01, 53300) -> PermanentError
-    for st in ["28P01", "3D000", "42P01", "42601", "23505", "22001"]:
-        err = make_db_err(psycopg.ProgrammingError, st, f"auth/syntax error {st}")
-        res = _translate_db_error(err)
-        assert isinstance(res, PermanentError), f"SQLSTATE {st} deveria ser PermanentError"
-
-    # 5. Desconhecido de banco -> PermanentError
-    unknown_db = psycopg.Error("generic unknown db issue")
-    unknown_db.sqlstate = "99999"
-    res = _translate_db_error(unknown_db)
-    assert isinstance(res, PermanentError)
-
-    # 6. Exceção do domínio pré-existente não é re-embrulhada
+    # 4. Exceções já do domínio passam intocadas
     t_orig = TransientError("already transient")
     p_orig = PermanentError("already permanent")
     assert _translate_db_error(t_orig) is t_orig
     assert _translate_db_error(p_orig) is p_orig
-
-    # 7. Exceção da aplicação (ValueError) passa intocada
-    val_err = ValueError("app logic error")
-    assert _translate_db_error(val_err) is val_err
 
 
 # ============================================================================
