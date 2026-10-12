@@ -104,20 +104,20 @@ jobs:
           TEST_DATABASE_URL: postgresql://agentpulse:agentpulse@localhost:5432/agentpulse
 
 lockfile:
+    name: Generate Lockfile (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Instalar respeitando o lockfile
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install all deps from pyproject.toml
         run: |
-          python -m venv /tmp/venv
-          /tmp/venv/bin/pip install --upgrade pip
-          /tmp/venv/bin/pip install -e ".[dev]" -c requirements.lock
+          pip install -e .[dev]
       - name: Comparar freeze com o arquivo commitado
         run: |
-          /tmp/venv/bin/pip freeze --exclude-editable | sort > /tmp/freeze.txt
+          pip freeze --exclude-editable | sort > /tmp/freeze.txt
           sort requirements.lock > /tmp/lock.txt
           diff /tmp/lock.txt /tmp/freeze.txt
       - name: Idade das versoes (>= 14 dias)
