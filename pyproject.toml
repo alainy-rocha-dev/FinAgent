@@ -27,7 +27,6 @@ dependencies = [
     "langgraph==1.2.10",
     "langgraph-checkpoint-postgres==3.1.0",
     "psycopg[pool]==3.3.2",
-    "sqlalchemy==2.0.35",
     # Configuration
     "pyyaml==6.0.1",
     "pydantic==2.11.5",
@@ -61,11 +60,13 @@ dev = [
     "ruff==0.6.5",
     "mypy==1.11.1",
     # Type stubs
-    "types-redis==4.6.0.20241004",
     "types-pyyaml==6.0.12.2",
-    "types-sqlalchemy==1.4.53.38",
-    "types-requests==2.33.0.20261006",
-    "types-urllib3==1.26.25.14",
+    # "types-sqlalchemy==1.4.53.38",
+]
+
+migrate = [
+    "alembic==1.8.0",
+    "sqlalchemy==2.0.35",
 ]
 
 [tool.ruff]

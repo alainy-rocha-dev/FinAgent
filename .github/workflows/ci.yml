@@ -19,50 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install ruff
-        run: pip install ruff
-      - name: Run ruff check
-        run: ruff check src/
+      - uses: ./.github/actions/setup-env
+      - run: ruff check src tests && ruff format --check src tests
 
   typecheck:
     name: Type Check (mypy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install core tools
-        run: pip install mypy
-      - name: Install runtime deps (pure Python)
-        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2
-      - name: Run mypy
-        run: mypy src/ --show-error-codes --show-error-context
+      - uses: ./.github/actions/setup-env
+      - run: mypy src/ --show-error-codes --show-error-context
 
   test-unit:
     name: Tests - Unit (pytest)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install test deps
-        run: pip install pytest pytest-asyncio pytest-cov
-      - name: Install runtime deps
-        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2
-      - name: Install optional deps
-        run: |
-          pip install langgraph langgraph-checkpoint-postgres || true
-          pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-celery opentelemetry-instrumentation-psycopg opentelemetry-semantic-conventions || true
-      - name: Run unit tests
-        run: pytest -v -m "not integration" --cov=src --cov-report=term-missing --cov-fail-under=0
+      - uses: ./.github/actions/setup-env
+      - run: pytest -m "not integration" -v
 
   test-integration:
     name: Tests - Integration (pytest -m integration)
@@ -86,73 +60,24 @@ jobs:
         options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 5
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install test deps
-        run: pip install pytest pytest-asyncio pytest-cov
-      - name: Install runtime deps
-        run: pip install sqlalchemy==2.0.35 redis==7.4.1 fastapi==0.115.10 uvicorn==0.32.0 pydantic==2.11.5 pydantic-settings==2.11.0 pyyaml==6.0.1 prometheus-client==0.19.0 python-json-logger==2.0.7 tenacity==8.2.3 celery==5.6.0 psycopg==3.3.2 psycopg-pool==3.3.3
-      - name: Install optional deps
-        run: |
-          pip install langgraph langgraph-checkpoint-postgres || true
-          pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-celery opentelemetry-instrumentation-psycopg opentelemetry-semantic-conventions || true
-      - name: Run integration tests
-        run: pytest -v -m integration --tb=short
+      - uses: ./.github/actions/setup-env
+      - run: pytest -v -m integration --tb=short
         env:
           TEST_DATABASE_URL: postgresql://agentpulse:agentpulse@localhost:5432/agentpulse
 
   lockfile:
-    name: Generate Lockfile (Linux)
+    name: Lockfile (verify)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install all deps from pyproject.toml
+      - uses: ./.github/actions/setup-env
+      - name: Comparar freeze com o arquivo commitado
         run: |
-          pip install -e .[dev]
-      - name: Verify committed requirements.lock matches pip freeze
-        run: |
-          pip freeze > /tmp/current_freeze.lock
-          # Compara dependencias ignorando paths de git locais ou comentarios
-          python -c '
-          import sys
-          def parse_lock(p):
-              deps = {}
-              with open(p) as f:
-                  for l in f:
-                      l = l.strip()
-                      if "==" in l and not l.startswith("#"):
-                          k, v = l.split("==", 1)
-                          deps[k.lower().replace("_", "-")] = v
-              return deps
-          committed = parse_lock("requirements.lock")
-          generated = parse_lock("/tmp/current_freeze.lock")
-          diff = []
-          for k in set(committed) | set(generated):
-              c = committed.get(k)
-              g = generated.get(k)
-              if c != g:
-                  diff.append(f"{k}: commit={c} != gerado={g}")
-          if diff:
-              print("FALHA: requirements.lock diverge do pip freeze no Linux:")
-              for d in sorted(diff):
-                  print(f"  {d}")
-              sys.exit(1)
-          print("OK: requirements.lock commitado eh 100% identico ao pip freeze no Linux.")
-          '
-      - name: Upload lockfile as artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: requirements-linux-lock
-          path: requirements.lock
-      - name: Verify versions against spike_versions.md
-        run: |
-          python .github/scripts/verify_versions.py
-        env:
-          TEST_DATABASE_URL: postgresql://agentpulse:agentpulse@localhost:5432/agentpulse
+          pip freeze --exclude-editable | sort > /tmp/freeze.txt
+          sort requirements.lock > /tmp/lock.txt
+          if ! diff /tmp/lock.txt /tmp/freeze.txt; then
+            echo "::error::requirements.lock inconsistente com o ambiente instalado"
+            exit 1
+          fi
+      - name: Idade das versoes (>= 14 dias)
+        run: python .github/scripts/verify_versions.py

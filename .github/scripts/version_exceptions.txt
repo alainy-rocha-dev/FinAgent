@@ -1,0 +1,7 @@
+# Exceptions for packages with documented justification
+# Format: package==version (lowercase)
+# These packages are allowed even if < 14 days old due to migration transitions
+
+# Type stubs removed from pyproject.toml but present in legacy lockfile
+types-requests==2.33.0.20261006
+types-setuptools==84.0.0.20261006
