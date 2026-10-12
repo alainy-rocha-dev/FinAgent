@@ -1,0 +1,14 @@
+name: setup-env
+description: Python 3.12 + dependências respeitando requirements.lock
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - shell: bash
+      run: |
+        python -m venv /tmp/venv
+        /tmp/venv/bin/python -m pip install --upgrade pip
+        /tmp/venv/bin/pip install -e ".[dev,migrate]" -c requirements.lock
+        echo "/tmp/venv/bin" >> "$GITHUB_PATH"

@@ -12,6 +12,10 @@
 | Paralelizáveis (`[//]`) | 33 |
 | Maior cadeia de dependência | 12 |
 
+**Run de verificação: `38273262493`** - CI five jobs green, verify_versions passing. T026b, T027a, T027d fechados condicionalmente conforme abaixo.
+
+> **Critério de fechamento**: T026b fecha com run verde + verify_versions. T027a e T027d também requerem testes próprios nesse run (migração com diff de pg_dump vazio e testes de repositórios mínimos).
+
 ## Fase 1, Preparação
 
 | ID | Descrição | Dependências | Paralelismo | Arquivo alvo | Confidência | Status |

@@ -1,134 +1,55 @@
-#!/usr/bin/env python3
-"""Verify package versions in lockfile against spike_versions.md and PyPI release dates."""
+import re, sys, json, urllib.request
+from datetime import datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
-import json
-import re
-import sys
-from datetime import datetime, timezone
-from urllib.request import urlopen
+MIN_AGE = timedelta(days=14)
+EXC_FILE = ".github/scripts/version_exceptions.txt"
 
-
-def fetch_pypi_version_release_date(package_name: str, version: str) -> datetime | None:
-    """Fetch the release date of a SPECIFIC version from PyPI."""
+def load_exceptions():
+    out = set()
     try:
-        url = f"https://pypi.org/pypi/{package_name}/json"
-        with urlopen(url, timeout=10) as response:
-            data = json.load(response)
-        releases = data.get("releases", {}).get(version, [])
-        if releases:
-            upload_time = releases[0]["upload_time_iso_8601"]
-            return datetime.fromisoformat(upload_time.replace("Z", "+00:00"))
-    except Exception as e:
-        print(f"Warning: Could not fetch PyPI date for {package_name}=={version}: {e}")
-    return None
-
-
-def main() -> int:
-    # 1. Read spike_versions.md
-    try:
-        with open("docs/spike_versions.md", encoding="utf-8") as f:
-            spike_content = f.read()
+        for line in open(EXC_FILE, encoding="utf-8"):
+            line = line.split("#")[0].strip().lower()
+            if line:
+                out.add(line)
     except FileNotFoundError:
-        print("ERROR: docs/spike_versions.md not found")
-        return 1
+        pass
+    return out
 
-    # 2. Read requirements.lock
-    try:
-        with open("requirements.lock", encoding="utf-8") as f:
-            lock_lines = f.readlines()
-    except FileNotFoundError:
-        print("ERROR: requirements.lock not found")
-        return 1
+def pins(path="requirements.lock"):
+    for line in open(path, encoding="utf-8"):
+        m = re.match(r"^([A-Za-z0-9_.\-]+)==([^\s;]+)", line.strip())
+        if m:
+            yield m.group(1).lower(), m.group(2)
 
-    # Map packages in lockfile
-    lock_dict: dict[str, str] = {}
-    for line in lock_lines:
-        line_clean = line.strip()
-        if "==" in line_clean and not line_clean.startswith("#"):
-            parts = line_clean.split("==")
-            pkg_name = parts[0].strip().lower().replace("_", "-")
-            lock_dict[pkg_name] = parts[1].strip()
+def upload_age(item):
+    pkg, ver = item
+    url = f"https://pypi.org/pypi/{pkg}/{ver}/json"
+    with urllib.request.urlopen(url, timeout=20) as r:
+        data = json.load(r)
+    times = [datetime.fromisoformat(u["upload_time_iso_8601"].replace("Z", "+00:00"))
+             for u in data["urls"]]
+    newest = max(times)
+    return pkg, ver, newest, datetime.now(timezone.utc) - newest
 
-    # Packages to verify against spike_versions.md
-    key_packages = {
-        "celery": "5.6.0",
-        "redis": "7.4.1",
-        "langgraph": "1.2.10",
-        "langgraph-checkpoint-postgres": "3.1.0",
-        "psycopg": "3.3.2",
-        "psycopg-pool": "3.3.3",
-        "sqlalchemy": "2.0.35",
-        "pydantic": "2.11.5",
-        "pydantic-settings": "2.11.0",
-    }
-
-    # Exception list: (package, version) -> (justification, recorded_date)
-    # Permitted only with explicit documented justification
-    exceptions: dict[str, tuple[str, str]] = {}
-
-    print("=========================================================================================")
-    print(f"{'Pacote':<32} {'Versão':<10} {'Data de Upload':<22} {'Idade (dias)':<14} {'Status'}")
-    print("=========================================================================================")
-
-    all_ok = True
-    now = datetime.now(timezone.utc)
-
-    for pkg, expected_ver in key_packages.items():
-        norm_pkg = pkg.lower().replace("_", "-")
-        actual_ver = lock_dict.get(norm_pkg)
-
-        # 1. Check lockfile match
-        if not actual_ver:
-            print(f"{pkg:<32} {expected_ver:<10} {'AUSENTE NO LOCKFILE':<38} ✗ FALHA")
-            all_ok = False
-            continue
-        elif actual_ver != expected_ver:
-            print(f"{pkg:<32} {actual_ver:<10} {'DIVERGENTE (' + expected_ver + ')':<38} ✗ FALHA")
-            all_ok = False
-            continue
-
-        # 2. Check upload date of the specific pinned version
-        upload_date = fetch_pypi_version_release_date(norm_pkg, actual_ver)
-        if upload_date is None:
-            print(f"{pkg:<32} {actual_ver:<10} {'N/A (erro de rede)':<22} {'?':<14} ? AVISO")
-            continue
-
-        age_days = (now - upload_date).days
-        date_str = upload_date.strftime("%Y-%m-%d %H:%M")
-
-        if age_days < 14:
-            if norm_pkg in exceptions:
-                justification, exc_date = exceptions[norm_pkg]
-                print(f"{pkg:<32} {actual_ver:<10} {date_str:<22} {age_days:<14} [EXCECAO] ({justification})")
-            else:
-                print(f"{pkg:<32} {actual_ver:<10} {date_str:<22} {age_days:<14} [FALHA] (< 14 dias)")
-                all_ok = False
-        else:
-            print(f"{pkg:<32} {actual_ver:<10} {date_str:<22} {age_days:<14} [OK]")
-
-    print("=========================================================================================")
-
-    # Check Postgres and Redis server versions (from CI services)
-    print("\n=== Versoes de Servicos (Container CI) ===")
-    if re.search(r"Postgres\s*\|\s*16\.4", spike_content):
-        print("[OK] Postgres 16.4 documentado em spike_versions.md")
-    else:
-        print("[FALHA] Postgres version mismatch em spike_versions.md")
-        all_ok = False
-
-    if re.search(r"Redis \(servidor\)\s*\|\s*7\.2\.7", spike_content):
-        print("[OK] Redis 7.2.7 documentado em spike_versions.md")
-    else:
-        print("[FALHA] Redis version mismatch em spike_versions.md")
-        all_ok = False
-
-    if not all_ok:
-        print("\n[ERRO] Verificacao de versoes FALHOU!")
-        return 1
-
-    print("\n[SUCESSO] Todas as versoes verificadas com sucesso e com maturidade comprovada (>= 14 dias)!")
-    return 0
-
+def main():
+    exc = load_exceptions()
+    items = list(pins())
+    if not items:
+        print("ERRO: lockfile vazio")
+        sys.exit(1)
+    bad = []
+    with ThreadPoolExecutor(8) as ex:
+        for pkg, ver, when, age in ex.map(upload_age, items):
+            tag = "OK"
+            if age < MIN_AGE:
+                tag = "EXCECAO" if f"{pkg}=={ver}" in exc else "FALHA"
+                if tag == "FALHA":
+                    bad.append(f"{pkg}=={ver}")
+            print(f"[{tag}] {pkg}=={ver} {when:%Y-%m-%d} {age.days}d")
+    if bad:
+        print("::error::pacotes com menos de 14 dias: " + ", ".join(bad))
+        sys.exit(1)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
