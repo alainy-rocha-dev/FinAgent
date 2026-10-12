@@ -146,6 +146,7 @@ jobs:
           print("OK: requirements.lock commitado eh 100% identico ao pip freeze no Linux.")
           '
       - name: Upload lockfile as artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: requirements-linux-lock
