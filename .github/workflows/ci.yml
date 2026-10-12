@@ -112,13 +112,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install all deps from pyproject.toml
+      - name: Create venv and generate requirements.lock
         run: |
+          python -m venv .venv
+          . .venv/bin/activate
           pip install -e .[dev]
+          pip freeze > requirements.lock
       - name: Verify committed requirements.lock matches pip freeze
         run: |
           pip freeze > /tmp/current_freeze.lock
-          # Compara dependencias ignorando paths de git locais ou comentarios
+          # Compara dependencias
           python -c '
           import sys
           def parse_lock(p):
@@ -151,6 +154,7 @@ jobs:
         with:
           name: requirements-linux-lock
           path: requirements.lock
+          if-no-files-found: error
       - name: Verify versions against spike_versions.md
         run: |
           python .github/scripts/verify_versions.py
