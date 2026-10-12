@@ -112,10 +112,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Create venv and generate requirements.lock
+      - name: Generate requirements.lock from pyproject.toml
         run: |
-          python -m venv .venv
-          . .venv/bin/activate
           pip install -e .[dev]
           pip freeze > requirements.lock
       - name: Verify committed requirements.lock matches pip freeze
