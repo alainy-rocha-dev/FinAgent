@@ -39,7 +39,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool as PsycopgPool
 from psycopg_pool import PoolTimeout
-from sqlalchemy import create_engine, Engine
+
 from src.domain.exceptions import PermanentError, TransientError
 from src.infra.config import get_config
 
@@ -127,8 +127,6 @@ def _build_dsn() -> str:
     cfg = get_config()
     return cfg.database_url
 
-
-_pool_api: PsycopgPool | None = None
 
 
 def init_api_pools() -> None:
