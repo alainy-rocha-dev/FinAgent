@@ -57,7 +57,6 @@ def main() -> int:
         "langgraph-checkpoint-postgres": "3.1.0",
         "psycopg": "3.3.2",
         "psycopg-pool": "3.3.3",
-        "asyncpg": "0.30.0",
         "sqlalchemy": "2.0.35",
         "pydantic": "2.11.5",
         "pydantic-settings": "2.11.0",
