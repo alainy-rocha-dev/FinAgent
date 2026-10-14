@@ -3,6 +3,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
 
+Este projeto integra o AgentPulse API (pasta automacao_agentes, como submódulo) como camada de execução e o módulo de análise sisanalisefinanceira.
+
 > **FinAgent** é um sistema de análise estatística de dados de mercado e finanças em arquitetura multiagente com **pipeline determinístico** (coleta → cálculo → template) e **validação cruzada anti-alucinação numérica** (cálculos 100% determinísticos via Python/Pandas/NumPy).
 
 ---
@@ -16,7 +18,7 @@
 2. **📈 Analista Quantitativo (`QuantAnalystAgent`):**
    - Cálculos estatísticos determinísticos: Média Móvel, Volatilidade %, Desvio Padrão, Extremos.
    - Implementados com `Pandas`/`NumPy`/`SciPy` com fallback transparente para funções nativas Python (`statistics`, `math`).
-   - **Zero alucinação numérica: todo cálculo é código Python puro, sem LLM**.
+   - **Cálculos 100% determinísticos: todo número é calculado por código Python, sem LLM**.
 
 3. **✍️ Redator Executivo (`ReportWriterAgent`):**
    - Geração de relatórios em Markdown via **template fixo (não LLM)**.

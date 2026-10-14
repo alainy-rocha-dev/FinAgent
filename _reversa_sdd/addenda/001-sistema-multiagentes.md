@@ -34,13 +34,13 @@ A entrega atendeu 12 de 12 ações de desenvolvimento planejadas em `actions.md`
 
 ## Regras sob vigilância
 
-- **Watch Items:** Nenhum ID de watch principal configurado para esta entrega greenfield inicial. Ver detalhes em [_reversa_forward/001-sistema-multiagentes/regression-watch.md](file:///c:/sisanalisefinanceira/_reversa_forward/001-sistema-multiagentes/regression-watch.md).
+- **Watch Items:** Nenhum ID de watch principal configurado para esta entrega greenfield inicial. Ver detalhes em [_reversa_forward/001-sistema-multiagentes/regression-watch.md](../../_reversa_forward/001-sistema-multiagentes/regression-watch.md).
 
 ---
 
 ## Fontes
 
-- [_reversa_forward/001-sistema-multiagentes/requirements.md](file:///c:/sisanalisefinanceira/_reversa_forward/001-sistema-multiagentes/requirements.md)
-- [_reversa_forward/001-sistema-multiagentes/legacy-impact.md](file:///c:/sisanalisefinanceira/_reversa_forward/001-sistema-multiagentes/legacy-impact.md)
-- [_reversa_forward/001-sistema-multiagentes/regression-watch.md](file:///c:/sisanalisefinanceira/_reversa_forward/001-sistema-multiagentes/regression-watch.md)
-- [_reversa_forward/001-sistema-multiagentes/progress.jsonl](file:///c:/sisanalisefinanceira/_reversa_forward/001-sistema-multiagentes/progress.jsonl)
+- [_reversa_forward/001-sistema-multiagentes/requirements.md](../../_reversa_forward/001-sistema-multiagentes/requirements.md)
+- [_reversa_forward/001-sistema-multiagentes/legacy-impact.md](../../_reversa_forward/001-sistema-multiagentes/legacy-impact.md)
+- [_reversa_forward/001-sistema-multiagentes/regression-watch.md](../../_reversa_forward/001-sistema-multiagentes/regression-watch.md)
+- [_reversa_forward/001-sistema-multiagentes/progress.jsonl](../../_reversa_forward/001-sistema-multiagentes/progress.jsonl)

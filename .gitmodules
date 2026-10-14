@@ -1,0 +1,3 @@
+[submodule "automacao_agentes"]
+	path = automacao_agentes
+	url = https://github.com/alainy-rocha-dev/AgentPulse-API.git

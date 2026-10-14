@@ -44,3 +44,39 @@ ENV/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Node modules
+node_modules/
+
+# Virtual Environments (specific locks)
+.venv_lock/
+.venv_test/
+
+# Runtime logs and debug files
+run_log.txt
+git_diff.txt
+
+# Debug scripts
+debug_lock.py
+debug_freeze.py
+find_t026b2.py
+find_t026b.py
+read_actions.py
+read_actions2.py
+read_actions3.py
+compare_lock.py
+verify_lock.py
+
+# Lock files and artifacts
+lock_artifact/
+requirements.lock.new
+tmp_current_freeze.lock
+run38185605778_log.txt
+
+# Test outputs
+test_compare.py
+test_output.txt
+
+# Misc
+add_update_event_seq.py
+linux_lockfile_from_git.txt
