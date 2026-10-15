@@ -32,7 +32,7 @@ window.RV_DATA = {
     { "term": "Símbolo / Ticker", "def": "Identificador único de ativo financeiro ou par de moedas (ex: AAPL, PETR4, USD/BRL)." },
     { "term": "Payload de Dados de Mercado", "def": "Dados brutos de preços históricos e volume coletados de APIs de mercado ou base simulada." },
     { "term": "Métricas Quantitativas", "def": "Cálculos estatísticos determinísticos sem risco de alucinação por IA." },
-    { "term": "Validação Anti-Alucinação", "def": "Camada de auditoria que valida a precisão numérica antes de salvar o relatório." },
+    { "term": "Cálculos 100% determinísticos", "def": "Todas as métricas e relatórios são gerados a partir de cálculos matemáticos diretos em Python (Pandas/NumPy/SciPy), sem risco de alucinação ou inferência probabilística." },
     { "term": "Salvaguarda de Iterações Máximas", "def": "Interrupção de segurança do motor LangGraph ao atingir o limite estipulado de iterações." }
   ],
   featuresIndex: {
