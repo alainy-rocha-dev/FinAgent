@@ -1,3 +1,4 @@
+
 """
 Interface de Linha de Comando (CLI) para o Sistema Multiagentes de Análise Financeira.
 """
@@ -15,7 +16,7 @@ from sisanalisefinanceira.utils.logging import setup_logging
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Sistema Multiagentes de Análise Financeira (CrewAI / LangGraph)"
+        description="Sistema Multiagentes de Análise Financeira (StateGraph-style / Chain-style)"
     )
     parser.add_argument(
         "--symbol", "-s",
@@ -25,9 +26,13 @@ def main():
     )
     parser.add_argument(
         "--engine", "-e",
-        choices=["langgraph", "crewai"],
-        default="langgraph",
-        help="Engine de orquestração a utilizar (padrão: langgraph)"
+        choices=["stategraph", "chain", "langgraph", "crewai"],
+        default="stategraph",
+        help=(
+            "Padrão de orquestração: stategraph (iterativo, padrão) ou chain (sequencial). "
+            "Implementações próprias, sem as bibliotecas LangGraph/CrewAI. "
+            "Os nomes antigos 'langgraph' e 'crewai' continuam aceitos."
+        )
     )
     parser.add_argument(
         "--mock",
@@ -55,6 +60,8 @@ def main():
     )
 
     args = parser.parse_args()
+    # Compatibilidade com os nomes antigos das flags
+    args.engine = {"langgraph": "stategraph", "crewai": "chain"}.get(args.engine, args.engine)
 
     setup_logging(level=settings.log_level)
     logger = logging.getLogger("sisanalisefinanceira.cli")
@@ -64,7 +71,7 @@ def main():
     print(f"Simbolo: {args.symbol} | Engine: {args.engine.upper()} | Mock: {args.mock}")
     print("=" * 60 + "\n")
 
-    if args.engine == "crewai":
+    if args.engine == "chain":
         orchestrator = CrewAIOrchestrator(use_mock=args.mock)
     else:
         orchestrator = LangGraphOrchestrator(max_iter=args.max_iter, use_mock=args.mock)
