@@ -1,154 +1,91 @@
-# 📊 FinAgent — Sistema Multiagentes de Análise Financeira
+📊 FinAgent — Agent-Based Financial Analysis with Deterministic Numbers
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
+Python 3.10+ Mostrar Imagem
 
-Este projeto integra o AgentPulse API (pasta automacao_agentes, como submódulo) como camada de execução e o módulo de análise sisanalisefinanceira.
+FinAgent analyzes market data (stocks and currencies) with a pipeline of specialized agents and produces an executive report in Markdown. Its design principle: every number in the report is computed by code — a language model never does arithmetic — and the report is cross-checked against the computed metrics.
 
-> **FinAgent** é um sistema de análise estatística de dados de mercado e finanças em arquitetura multiagente com **pipeline determinístico** (coleta → cálculo → template) e **validação cruzada anti-alucinação numérica** (cálculos 100% determinísticos via Python/Pandas/NumPy).
+It uses AgentPulse API (folder automacao_agentes, as a git submodule) as the execution layer.
 
----
+How it works
+DataCollectorAgent  →  QuantAnalystAgent  →  ReportWriterAgent  →  numerical audit
+  (prices: Yahoo         (mean, std dev,        (Markdown report)     (report cross-checked
+   Finance or mock)       volatility, moving                           against the computed
+                          averages)                                    metrics)
+Data collector — fetches historical prices from Yahoo Finance, with automatic fallback to sample data. When sample data is used, the report shows a visible "⚠️ SIMULATED DATA" banner.
+Quant analyst — computes mean, max/min, standard deviation, volatility (%) and moving averages with Pandas/NumPy/SciPy, falling back to Python's statistics/math.
+Report writer — fills a fixed Markdown template with the computed metrics.
+Numerical audit — extracts the decimal numbers from the report and compares them with the computed metrics. Today the key metrics (mean price and volatility) must be present for the report to be accepted, and any other number that does not match a metric is logged.
+Two orchestration patterns, built from scratch
+Pattern	Flag	Behavior
+StateGraph-style (default)	--engine stategraph	Iterative state machine with a strict iteration limit (max_iter = 3) and a MAX_ITER_REACHED safeguard
+Chain-style	--engine chain	Linear sequence of tasks passing context forward
 
-## 🌟 Destaques da Arquitetura
+Both are own implementations of these patterns — they do not use the LangGraph or CrewAI libraries.
 
-1. **🤖 Coletor de Dados (`DataCollectorAgent`):**
-   - Ingestão de cotações históricas via API (Yahoo Finance) com fallback automático para dados simulados (*Mock Fallback*).
-   - **Aviso visível no relatório quando dados simulados são usados** (banner `⚠️ DADOS SIMULADOS`).
-
-2. **📈 Analista Quantitativo (`QuantAnalystAgent`):**
-   - Cálculos estatísticos determinísticos: Média Móvel, Volatilidade %, Desvio Padrão, Extremos.
-   - Implementados com `Pandas`/`NumPy`/`SciPy` com fallback transparente para funções nativas Python (`statistics`, `math`).
-   - **Cálculos 100% determinísticos: todo número é calculado por código Python, sem LLM**.
-
-3. **✍️ Redator Executivo (`ReportWriterAgent`):**
-   - Geração de relatórios em Markdown via **template fixo (não LLM)**.
-   - Camada de auditoria que valida correspondência numérica exata entre métricas calculadas e números no relatório.
-
-4. **⚙️ Dois Padrões de Orquestração (implementados do zero):**
-   - **StateGraph-style:** Máquina de estados iterativa com limite estrito de iterações (`max_iter = 3`) e salvaguarda `MAX_ITER_REACHED`.
-   - **Task Chaining-style:** Encadeamento sequencial linear de contextos de tarefas.
-   - *Nota: não usam as bibliotecas `langgraph` nem `crewai` — são implementações próprias seguindo esses padrões.*
-
-> **Nota sobre "Agentes":** Atualmente o sistema opera como **pipeline determinístico** (coleta → cálculo → template). Não há chamadas a LLM em tempo de execução. A arquitetura prevê slots para LLM (ex: geração de narrativa textual, decisão de alocação) que podem ser ativados futuramente via flags de feature.
-
----
-
-## 🌐 Documentação Interativa & Visualizações
-
-O projeto conta com um **mini-site de documentação visual** gerado pelo framework **Reversa** (`_reversa_docs/`):
-
-- 🌆 **Cidade do Código 3D** (`arquitetura.html`): Visualização Three.js onde prédios representam volume de código por módulo
-- 🔗 **Grafo de Módulos 2D** (`modulos.html`): Grafo de força em D3.js com acoplamentos e dependências
-- 📊 **Painel de Métricas** (`metricas.html`): Dashboards Highcharts (treemap LOC, complexidade, sankey, confiança 95.7%)
-- 📖 **Glossário de Termos** (`glossario.html`): Conceitos financeiros, salvaguardas e termos do ecossistema
-- 📜 **Especificações por Feature** (`features/`): Agentes, Orquestradores, Utilitários
-
-### 💡 Como abrir a documentação visual:
-
-> ⚠️ **Nota:** Clicar no link Markdown no IDE abre o código-fonte. Para ver o site formatado, abra no navegador.
-
-```bash
-# Opção 1: Windows
-start _reversa_docs/index.html
-
-# Opção 2: Servidor HTTP local (recomendado para JS/CORS)
-python -m http.server 8080 --directory _reversa_docs
-# Abra http://localhost:8080
-```
-
----
-
-## 🚀 Como Executar
-
-### 1. Pré-requisitos
-- Python 3.10+
-- Instalar dependências:
-```bash
+Running
+bash
 pip install -r requirements.txt
-```
 
-### 2. Execução via CLI
+# StateGraph-style (default), sample data
+python -m sisanalisefinanceira.cli --symbol AAPL --engine stategraph
 
-#### Pipeline StateGraph-style (padrão)
-```bash
-python -m sisanalisefinanceira.cli --symbol AAPL --engine langgraph
-```
+# Chain-style
+python -m sisanalisefinanceira.cli --symbol USD/BRL --engine chain
 
-#### Pipeline Task Chaining-style
-```bash
-python -m sisanalisefinanceira.cli --symbol USD/BRL --engine crewai
-```
-
-#### Execução Online (tenta Yahoo Finance, falha se rate-limited)
-```bash
+# Try live data from Yahoo Finance (may hit rate limits)
 python -m sisanalisefinanceira.cli --symbol PETR4 --no-mock
-```
 
-**Saída esperada (exemplo com mock):**
-```
-SISTEMA MULTIAGENTES DE ANALISE FINANCEIRA
-Simbolo: AAPL | Engine: LANGGRAPH | Mock: True
+Reports are saved in reports/.
 
-[LangGraph] Iteração 1/3 iniciada para símbolo: AAPL
-[LangGraph] Relatório final gerado com sucesso e validado anti-alucinação.
+Sample output (excerpt, sample data)
+markdown
+## 2. Deterministic Quantitative Indicators
 
-RELATORIO FINAL GERADO:
-# 📊 Relatório Executivo de Análise Financeira
-> **Ativo / Símbolo:** `AAPL`
-> **Fonte dos Dados:** `mock_fallback`
-> **⚠️ DADOS SIMULADOS (MOCK FALLBACK)`
-> **Garantia Numérica:** 🟢 Cálculos 100% Determinísticos...
-...
-```
+| Indicator      | Computed value | Source / method          |
+|----------------|----------------|--------------------------|
+| Mean price     | 153.2857       | Pandas / Math mean()     |
+| Std deviation  | 2.288          | NumPy / Math std()       |
+| Volatility (%) | 1.49%          | (Std / Mean) * 100       |
 
----
+(Reports are generated in Portuguese; translated here.)
 
-## 🧪 Testes Automatizados
-
-```bash
+Tests
+bash
 pytest tests/ -v
-```
-**Resultado atual:** 10/10 testes passando (cobertura: coletor mock, validação quantitativa, edge cases NaN/janelas)
 
----
+Covers the data collector (including the sample-data fallback), quantitative calculations and edge cases (NaN values, windows larger than the data), configuration, and architecture boundaries.
 
-## 📁 Estrutura do Repositório
+Roadmap — LLM with a numerical guardrail
 
-```
+The next step is to let an LLM write the report narrative, with the audit turned into a strict guardrail: any number in the LLM's text that does not come from the calculation blocks the report (today such numbers are only logged). The deterministic pipeline already provides the computed metrics and the number extraction; the LLM slot and the strict mode are the missing pieces.
+
+In progress: infrastructure layer (src/) with PostgreSQL connection pools and a LangGraph checkpointer spike for resumable runs.
+
+Known limitations
+Item	Status	Detail
+LLM at runtime	❌ Not yet	Report text is a fixed template; see roadmap
+LangGraph / CrewAI libraries	❌ Not used	Orchestrators are own implementations of the patterns
+Live data	⚠️ Partial	Yahoo Finance is rate-limited; sample data is the safe default
+Portfolio optimization	🧪 Experimental	optimize_weights_tool uses SciPy when available, otherwise equal weights
+Strict numerical audit	⚠️ Partial	Unmatched numbers are logged, not yet blocked
+Human-in-the-loop	❌ Not yet	Planned
+Benchmark between the two patterns	❌ Not measured	Both implemented, no automated comparison
+Project structure
 sisanalisefinanceira/
-├── cli.py                     # Interface de linha de comando
-├── config.py                  # Configurações globais (max_iter, mock, paths)
-├── models.py                  # Schemas Pydantic (MarketDataPayload, QuantAnalysisMetrics, AgentState)
-├── agents/                    # Agentes Especialistas
-│   ├── data_collector.py      # Coleta API + mock fallback
-│   ├── quant_analyst.py       # Cálculos determinísticos (Pandas/NumPy/Math)
-│   └── report_writer.py       # Template Markdown + validação numérica
-├── orchestrators/             # Padrões de Orquestração
-│   ├── crewai_orchestrator.py # Task Chaining (sequencial)
-│   └── langgraph_orchestrator.py # StateGraph (iterativo c/ max_iter)
-└── utils/                     
-    └── logging.py             # Logging estruturado
-_reversa_sdd/                  # Specs SDD da Engenharia Reversa
-_reversa_docs/                 # Mini-site docs visual (HTML/JS standalone)
-tests/                         # Testes pytest (10 passing)
-reports/                       # Relatórios gerados (.md)
-```
+├── cli.py                   # command-line interface
+├── config.py                # settings (max_iter, mock, paths)
+├── models.py                # Pydantic schemas
+├── agents/
+│   ├── data_collector.py    # API + sample-data fallback
+│   ├── quant_analyst.py     # deterministic calculations
+│   └── report_writer.py     # Markdown template + numerical audit
+├── orchestrators/
+│   ├── crewai_orchestrator.py     # chain-style pattern
+│   └── langgraph_orchestrator.py  # stategraph-style pattern
+└── utils/logging.py
+src/                         # infrastructure layer (in progress)
+tests/                       # pytest suite
+reports/                     # generated reports
+License
 
----
-
-## ⚠️ Limitações Conhecidas (Honestidade para Recrutadores)
-
-| Item | Status | Detalhe |
-|------|--------|---------|
-| **LLM em produção** | ❌ Não implementado | Pipeline 100% determinístico; texto é template fixo |
-| **CrewAI / LangGraph libs** | ❌ Não usadas | Orquestradores são *pattern implementations* próprias |
-| **Dados reais** | ⚠️ Parcial | Yahoo Finance API sujeita a rate limit; mock é default seguro |
-| **Otimização de carteira** | 🧪 Tool presente | `optimize_weights_tool` usa SciPy se disponível, senão equal-weight |
-| **A2A / Human-in-the-loop** | ❌ Não implementado | Arquitetura prevê, mas não codado |
-| **Comparativo LangGraph vs CrewAI** | ❌ Não medido | Dois padrões implementados, mas sem benchmark automatizado |
-
----
-
-## 📄 Licença
-
-Este projeto está licenciado sob a licença **MIT** — consulte o arquivo [LICENSE](./LICENSE) para mais detalhes.
+MIT — see LICENSE.
