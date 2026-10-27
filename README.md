@@ -64,7 +64,21 @@ metrics (JSON) → LLM writes 2 paragraphs → numeric guardrail ──ok──�
 
 The single miss is the blind spot in disguise: a "wrongly rounded" mean (5.16) happened to equal one of the real moving averages, so the number exists in the calculation — it is just attached to the wrong metric.
 
-To measure a real LLM: `python -m eval.guardrail_eval --live --runs 5` (counts approvals on the first try, after repair, and fallbacks).
+### With a real LLM
+
+`python -m eval.guardrail_eval --live --runs 5` — `openai/gpt-oss-120b` on Groq, 5 assets × 5 runs ([`eval/results/guardrail_live_20261027-194032.json`](eval/results/guardrail_live_20261027-194032.json)):
+
+| Outcome | Runs | Rate |
+|---|---|---|
+| Approved on the first try | 24 | 96% |
+| Blocked, then approved after the repair loop | 1 | 4% |
+| Blocked on every attempt (template used) | 0 | 0% |
+
+The one block was a **truncated** number: the model wrote the standard deviation 1.3558 as `1.35` instead of rounding it to `1.36`. The guardrail rejected it, the model received the rejected number and rewrote the text with the correct value.
+
+Two lessons from the first live runs: 15 of 25 calls failed with provider errors in quick succession — most likely the free tier's rate limit, which the client did not report at the time (now fixed with retries that honor `Retry-After`, a pause between calls and the provider's error message in the logs), and an invalid key now stops the evaluation immediately with the provider's message.
+
+Numbers are only part of the risk: approved texts can still contain soft interpretive claims (e.g. "suggesting a gradual upward trend"). The guardrail checks numbers, not meaning — see roadmap.
 
 ## Running
 
@@ -114,7 +128,8 @@ Covers the data collector (including the sample-data fallback), quantitative cal
 ## Roadmap
 
 - **Semantic check:** catch a correct number attached to the wrong metric (the guardrail's blind spot), e.g. by asking the LLM for structured claims (`metric → value`) and checking each pair.
-- **Live LLM measurements** with `eval.guardrail_eval --live` across providers.
+- **Claim check for interpretations** ("upward trend", "moderate volatility") against simple rules on the computed series.
+- **Live measurements on more models** and on real (non-sample) market data.
 
 In progress: infrastructure layer (`src/`) with PostgreSQL connection pools and a LangGraph checkpointer spike for resumable runs.
 
@@ -124,7 +139,8 @@ In progress: infrastructure layer (`src/`) with PostgreSQL connection pools and 
 |---|---|---|
 | LLM narrative | ✅ Optional | `--narrative llm`; template remains the default |
 | Right number, wrong metric | ⚠️ Not detected | The guardrail checks that a number exists in the calculation, not which metric it describes |
-| Live LLM measurements | ❌ Not yet published | Offline guardrail evaluation only; run `--live` to measure a real model |
+| Live LLM measurements | ⚠️ One model | 25 runs on `gpt-oss-120b` (Groq) with sample data; other providers not measured |
+| Interpretive claims | ⚠️ Not checked | The guardrail audits numbers; wording such as "upward trend" is not verified |
 | LangGraph / CrewAI libraries | ❌ Not used | Orchestrators are own implementations of the patterns |
 | Live data | ⚠️ Partial | Yahoo Finance is rate-limited; sample data is the safe default |
 | Portfolio optimization | 🧪 Experimental | `optimize_weights_tool` uses SciPy when available, otherwise equal weights |
