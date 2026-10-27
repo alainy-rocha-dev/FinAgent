@@ -3,11 +3,13 @@ Orquestrador de encadeamento de tarefas (Task Chaining) no estilo CrewAI.
 """
 
 import logging
+from typing import Optional
 from sisanalisefinanceira.config import settings
 from sisanalisefinanceira.models import AgentState
 from sisanalisefinanceira.agents.data_collector import DataCollectorAgent
 from sisanalisefinanceira.agents.quant_analyst import QuantAnalystAgent
 from sisanalisefinanceira.agents.report_writer import ReportWriterAgent
+from sisanalisefinanceira.agents.narrative_writer import NarrativeWriterAgent
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +17,14 @@ logger = logging.getLogger(__name__)
 class CrewAIOrchestrator:
     """Orquestrador baseado no paradigma de encadeamento de tarefas e contextos (CrewAI Adapter)."""
 
-    def __init__(self, use_mock: bool = settings.use_mock_fallback):
+    def __init__(
+        self,
+        use_mock: bool = settings.use_mock_fallback,
+        narrative_writer: Optional[NarrativeWriterAgent] = None,
+    ):
         self.collector = DataCollectorAgent(use_mock=use_mock)
         self.analyst = QuantAnalystAgent()
-        self.writer = ReportWriterAgent()
+        self.writer = ReportWriterAgent(narrative_writer=narrative_writer)
 
     def run(self, symbol: str) -> AgentState:
         """Executa a sequência de Tasks encadeadas entre os 3 agentes."""

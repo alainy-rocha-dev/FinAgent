@@ -1,0 +1,102 @@
+{
+  "mode": "offline",
+  "symbols": [
+    "AAPL",
+    "PETR4",
+    "USD/BRL",
+    "MSFT",
+    "VALE3"
+  ],
+  "detection_rate": 0.98,
+  "false_positive_rate": 0.0,
+  "blind_spot_detection_rate": 0.0,
+  "counts": {
+    "legit": {
+      "blocked": 0,
+      "total": 40
+    },
+    "adversarial": {
+      "blocked": 49,
+      "total": 50
+    },
+    "blind_spot": {
+      "blocked": 0,
+      "total": 10
+    }
+  },
+  "by_category": {
+    "adversarial:arredondamento_errado": {
+      "blocked": 4,
+      "total": 5
+    },
+    "adversarial:data": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:digito_alterado": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:escala_10x": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:milhar_inventado": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:percentual_inventado": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:prazo_inventado": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:preco_alvo": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:sinal_invertido": {
+      "blocked": 5,
+      "total": 5
+    },
+    "adversarial:ultima_casa": {
+      "blocked": 5,
+      "total": 5
+    },
+    "blind_spot:metrica_trocada": {
+      "blocked": 0,
+      "total": 10
+    },
+    "legit:arredondado": {
+      "blocked": 0,
+      "total": 10
+    },
+    "legit:contagem": {
+      "blocked": 0,
+      "total": 5
+    },
+    "legit:exato": {
+      "blocked": 0,
+      "total": 5
+    },
+    "legit:inteiro": {
+      "blocked": 0,
+      "total": 5
+    },
+    "legit:media_movel": {
+      "blocked": 0,
+      "total": 5
+    },
+    "legit:sem_numero": {
+      "blocked": 0,
+      "total": 5
+    },
+    "legit:virgula": {
+      "blocked": 0,
+      "total": 5
+    }
+  },
+  "false_positives": []
+}
