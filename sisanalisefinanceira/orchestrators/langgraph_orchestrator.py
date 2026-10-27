@@ -3,13 +3,14 @@ Orquestrador baseado no conceito de StateGraph (LangGraph) para o pipeline multi
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from sisanalisefinanceira.config import settings
 from sisanalisefinanceira.models import AgentState
 from sisanalisefinanceira.agents.data_collector import DataCollectorAgent
 from sisanalisefinanceira.agents.quant_analyst import QuantAnalystAgent
 from sisanalisefinanceira.agents.report_writer import ReportWriterAgent
+from sisanalisefinanceira.agents.narrative_writer import NarrativeWriterAgent
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +18,16 @@ logger = logging.getLogger(__name__)
 class LangGraphOrchestrator:
     """Orquestrador StateGraph com suporte a controle estrito de iterações e contratos Pydantic."""
 
-    def __init__(self, max_iter: int = settings.max_iter, use_mock: bool = settings.use_mock_fallback):
+    def __init__(
+        self,
+        max_iter: int = settings.max_iter,
+        use_mock: bool = settings.use_mock_fallback,
+        narrative_writer: Optional[NarrativeWriterAgent] = None,
+    ):
         self.max_iter = max_iter
         self.collector = DataCollectorAgent(use_mock=use_mock)
         self.analyst = QuantAnalystAgent()
-        self.writer = ReportWriterAgent()
+        self.writer = ReportWriterAgent(narrative_writer=narrative_writer)
 
     def run(self, symbol: str) -> AgentState:
         """Executa a máquina de estados do pipeline multiagente."""

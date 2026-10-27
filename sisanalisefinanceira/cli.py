@@ -11,6 +11,8 @@ from sisanalisefinanceira.config import settings
 from sisanalisefinanceira.orchestrators.langgraph_orchestrator import LangGraphOrchestrator
 from sisanalisefinanceira.orchestrators.crewai_orchestrator import CrewAIOrchestrator
 from sisanalisefinanceira.agents.report_writer import ReportWriterAgent
+from sisanalisefinanceira.agents.narrative_writer import NarrativeWriterAgent
+from sisanalisefinanceira.llm.client import client_from_env
 from sisanalisefinanceira.utils.logging import setup_logging
 
 
@@ -53,6 +55,15 @@ def main():
         help="Salvar o relatório resultante em arquivo .md no disco"
     )
     parser.add_argument(
+        "--narrative",
+        choices=["template", "llm"],
+        default="template",
+        help=(
+            "Texto da análise: template (fixo, padrão) ou llm (escrito por LLM e auditado pelo "
+            "guardrail numérico; requer GROQ_API_KEY ou OPENAI_API_KEY)"
+        )
+    )
+    parser.add_argument(
         "--max-iter",
         type=int,
         default=settings.max_iter,
@@ -71,10 +82,21 @@ def main():
     print(f"Simbolo: {args.symbol} | Engine: {args.engine.upper()} | Mock: {args.mock}")
     print("=" * 60 + "\n")
 
+    narrative_writer = None
+    if args.narrative == "llm":
+        llm = client_from_env()
+        if llm is None:
+            print("Aviso: --narrative llm sem GROQ_API_KEY/OPENAI_API_KEY. Usando o texto padrao.\n")
+        else:
+            narrative_writer = NarrativeWriterAgent(llm, window=settings.default_moving_average_window)
+            print(f"Narrativa por LLM: {llm.label} (auditada pelo guardrail numerico)\n")
+
     if args.engine == "chain":
-        orchestrator = CrewAIOrchestrator(use_mock=args.mock)
+        orchestrator = CrewAIOrchestrator(use_mock=args.mock, narrative_writer=narrative_writer)
     else:
-        orchestrator = LangGraphOrchestrator(max_iter=args.max_iter, use_mock=args.mock)
+        orchestrator = LangGraphOrchestrator(
+            max_iter=args.max_iter, use_mock=args.mock, narrative_writer=narrative_writer
+        )
 
     state = orchestrator.run(args.symbol)
 
