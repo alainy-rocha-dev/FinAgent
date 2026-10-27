@@ -1,0 +1,227 @@
+{
+  "mode": "live",
+  "model": "groq:openai/gpt-oss-120b",
+  "runs_per_symbol": 5,
+  "total": 25,
+  "statuses": {
+    "llm": 24,
+    "llm_repaired": 1
+  },
+  "llm_responded": 25,
+  "approved_first_try": 0.96,
+  "approved_after_repair": 0.04,
+  "fell_back_to_template": 0.0,
+  "provider_errors": {},
+  "most_blocked_numbers": [
+    [
+      "1.35",
+      1
+    ]
+  ],
+  "samples": [
+    {
+      "symbol": "AAPL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo AAPL apresentou preço médio de 153.2857, com variação entre o preço mínimo de 150.0 e o preço máximo de 156.5 ao longo de sete pontos de dados. O desvio padrão registrado foi de 2.288, indicando dispersão ao redor da média, enquanto a volatilidade percentual ficou em 1.49, refletindo oscilações moderadas no período analisado.\n\nAs médias móveis calculadas com janela de 2 períodos mostraram valores sequenciais de 151.25, 151.75, 152.4, 154.5, 154.6 e 155.25, sugerindo uma tendência de elevação gradual. Os dados foram gerados em ambiente simulado e não foram emitidos alertas durante a análise.",
+      "error": ""
+    },
+    {
+      "symbol": "AAPL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo AAPL foi analisado com base em 7 pontos de dados, sendo os preços simulados. O preço médio observado foi de 153.2857, com um limite superior de 156.5 e um limite inferior de 150.0. O desvio padrão de 2.288 indica variação moderada ao redor da média, enquanto a volatilidade percentual ficou em 1.49, sugerindo oscilações relativamente contidas no período analisado.\n\nAs médias móveis calculadas ao longo da janela de 2 períodos apresentaram valores sequenciais de 151.25, 151.75, 152.4, 154.5, 154.6 e 155.25, refletindo uma tendência de elevação gradual. Não foram gerados alertas durante a avaliação, o que indica ausência de sinais críticos de ruptura ou de condições extremas nos parâmetros monitorados.",
+      "error": ""
+    },
+    {
+      "symbol": "AAPL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo AAPL apresentou um preço médio de 153.2857, com variação entre o preço máximo de 156.5 e o preço mínimo de 150.0 ao longo de 7 pontos de dados. O desvio padrão de 2.288 indica dispersão moderada, enquanto a volatilidade percentual de 1.49 sugere movimentos relativamente contidos.  \n\nAs médias móveis calculadas com janela de 2 períodos mostraram valores sequenciais de 151.25, 151.75, 152.4, 154.5, 154.6 e 155.25, refletindo uma tendência de alta ao longo da série. Não foram gerados alertas e os dados são simulados.",
+      "error": ""
+    },
+    {
+      "symbol": "AAPL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo AAPL apresentou preço médio de 153.2857, com um intervalo entre o preço máximo de 156.5 e o preço mínimo de 150.0 ao longo de sete pontos de dados. O desvio padrão de 2.288 indica variação moderada em torno da média, enquanto a volatilidade percentual de 1.49 sugere oscilações relativamente contidas no período analisado.\n\nA janela de média móvel utilizada foi de 2, gerando médias que oscilaram entre 151.25 e 155.25, refletindo a tendência de alta gradual. Os dados são simulados e não foram identificados alertas durante a observação.",
+      "error": ""
+    },
+    {
+      "symbol": "AAPL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "Para o ativo AAPL foram analisados 7 pontos de dados em um cenário de dados simulados. O preço médio observado foi 153.2857, com um preço máximo de 156.5 e um preço mínimo de 150.0, enquanto o desvio padrão registrou 2.288 e a volatilidade percentual ficou em 1.49.  \n\nA janela média móvel considerada foi de 2, resultando nas médias móveis de 151.25, 151.75, 152.4, 154.5, 154.6 e 155.25. Não foram gerados alertas durante a análise.",
+      "error": ""
+    },
+    {
+      "symbol": "PETR4",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo PETR4 apresentou um preço médio de 33.1 ao longo de sete pontos de dados, com o preço máximo registrado em 34.0 e o mínimo em 32.0. O desvio padrão de 0.7211 indica a dispersão dos preços em torno da média, enquanto a volatilidade percentual de 2.18 reflete a variação relativa observada no período analisado.\n\nA janela de média móvel utilizada foi de 2, gerando médias móveis sequenciais de 32.25, 32.8, 32.95, 33.15, 33.75 e 33.9, sem a ocorrência de alertas durante a simulação.",
+      "error": ""
+    },
+    {
+      "symbol": "PETR4",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "A análise considera 7 pontos de dados simulados para o ativo PETR4. O preço médio observado foi de 33.1, com um preço máximo de 34.0 e um preço mínimo de 32.0. O desvio padrão registrado foi de 0.7211, indicando a dispersão dos preços, e a volatilidade percentual ficou em 2.18.  \n\nA janela de média móvel utilizada foi de 2 períodos, gerando médias de 32.25, 32.8, 32.95, 33.15, 33.75 e 33.9, que mostram uma tendência de elevação ao longo da sequência. Não foram identificados alertas durante a simulação.",
+      "error": ""
+    },
+    {
+      "symbol": "PETR4",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O preço médio observado foi de 33.1, com um limite superior de 34.0 e um limite inferior de 32.0, indicando um intervalo de negociação relativamente estreito. O desvio padrão registrado foi de 0.7211 e a volatilidade percentual ficou em 2.18, refletindo variações moderadas ao longo do período analisado.\n\nForam analisados 7 pontos de dados, utilizando uma janela média móvel de 2, o que gerou as médias móveis de 32.25, 32.8, 32.95, 33.15, 33.75 e 33.9, evidenciando uma tendência de elevação gradual nos valores de referência.",
+      "error": ""
+    },
+    {
+      "symbol": "PETR4",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo PETR4 apresentou um preço mínimo de 32.0 e um preço máximo de 34.0, com um preço médio de 33.1 ao longo de 7 pontos de dados. O desvio padrão registrado foi de 0.7211, enquanto a volatilidade percentual ficou em 2.18, indicando variações moderadas no período analisado.\n\nA janela de média móvel utilizada foi de 2, gerando médias móveis de 32.25, 32.8, 32.95, 33.15, 33.75 e 33.9. Esses valores refletem a evolução do preço ao longo das observações, sem a presença de alertas adicionais.",
+      "error": ""
+    },
+    {
+      "symbol": "PETR4",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo PETR4 foi analisado com base em sete pontos de dados, apresentando um preço médio de 33.1, com limite superior em 34.0 e limite inferior em 32.0. O desvio padrão registrado foi de 0.7211, enquanto a volatilidade percentual ficou em 2.18, indicando variações moderadas ao longo da amostra.\n\nA janela de média móvel considerada foi de 2, gerando as médias móveis de 32.25, 32.8, 32.95, 33.15, 33.75 e 33.9, sem a ocorrência de alertas durante a simulação.",
+      "error": ""
+    },
+    {
+      "symbol": "USD/BRL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo USD/BRL apresentou sete pontos de dados, com preço médio de 5.1514, preço máximo de 5.2 e preço mínimo de 5.1. O desvio padrão registrado foi de 0.0348, indicando variação moderada ao redor da média, enquanto a volatilidade percentual ficou em 0.68, refletindo oscilações relativamente contidas no período analisado.\n\nA janela de média móvel considerada tem tamanho de 2, gerando médias sequenciais de 5.11, 5.135, 5.145, 5.16, 5.19 e 5.185, o que demonstra um leve deslocamento ascendente ao longo das observações. Não foram identificados alertas durante a simulação.",
+      "error": ""
+    },
+    {
+      "symbol": "USD/BRL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O conjunto de dados analisado compreende sete pontos de dados simulados para o par USD/BRL, apresentando um preço médio de 5.1514, com um limite superior de 5.2 e um limite inferior de 5.1. O desvio padrão registrado foi de 0.0348, enquanto a volatilidade percentual se manteve em 0.68, indicando variações moderadas ao longo da amostra.\n\nA janela de média móvel utilizada foi de 2 períodos, gerando as médias móveis de 5.11, 5.135, 5.145, 5.16, 5.19 e 5.185. Não foram identificados alertas durante a análise, sugerindo que o comportamento observado permaneceu dentro dos parâmetros esperados para o período considerado.",
+      "error": ""
+    },
+    {
+      "symbol": "USD/BRL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo USD/BRL foi analisado com base em 7 pontos de dados, apresentando um preço médio de 5.1514, um preço máximo de 5.2 e um preço mínimo de 5.1. O desvio padrão registrado foi de 0.0348, enquanto a volatilidade percentual ficou em 0.68, indicando variações moderadas ao longo da janela de observação. \n\nA janela de média móvel utilizada tem comprimento de 2, gerando médias móveis sequenciais de 5.11, 5.135, 5.145, 5.16, 5.19 e 5.185, que mostram um leve deslocamento ascendente ao longo dos pontos analisados. Não foram identificados alertas durante o período considerado.",
+      "error": ""
+    },
+    {
+      "symbol": "USD/BRL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo USD/BRL foi analisado com base em sete pontos de dados simulados, apresentando um preço médio de 5.1514, um preço máximo de 5.2 e um preço mínimo de 5.1. O desvio padrão registrado foi de 0.0348, enquanto a volatilidade percentual ficou em 0.68, indicando variações moderadas ao longo da amostra.\n\nCom uma janela de média móvel de 2, as médias móveis observadas foram 5.11, 5.135, 5.145, 5.16, 5.19 e 5.185, refletindo uma leve tendência de alta. Não foram gerados alertas durante a análise.",
+      "error": ""
+    },
+    {
+      "symbol": "USD/BRL",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo USD/BRL foi analisado com base em sete pontos de dados, apresentando um preço médio de 5.1514, um preço máximo de 5.2 e um preço mínimo de 5.1. A volatilidade percentual observada foi de 0.68, indicando variações moderadas ao longo do período analisado, enquanto o desvio padrão ficou em 0.0348, refletindo a dispersão dos preços em torno da média.\n\nAs médias móveis calculadas com janela de dois períodos mostraram uma trajetória ascendente, passando de 5.11 para 5.185 ao longo das observações, o que sugere um leve impulso de alta. Não foram gerados alertas durante a simulação, reforçando a estabilidade do comportamento observado nas condições analisadas.",
+      "error": ""
+    },
+    {
+      "symbol": "MSFT",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo MSFT apresentou preço médio de 102.0143, com variação entre 100.0 e 104.0 ao longo de 7 pontos de dados. O desvio padrão foi de 1.3558 e a volatilidade percentual de 1.33, indicando certa estabilidade no período analisado.  \n\nAs médias móveis calculadas com janela de 2 mostraram valores de 100.75, 101.15, 101.55, 102.65, 102.75 e 103.25, refletindo uma tendência de alta gradual. Não foram gerados alertas durante a simulação.",
+      "error": ""
+    },
+    {
+      "symbol": "MSFT",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo MSFT apresenta um preço mínimo de 100.0 e um preço máximo de 104.0 ao longo de sete pontos de dados simulados, com um preço médio de 102.0143. A volatilidade percentual está em 1.33 e o desvio padrão registra 1.3558, indicando variações moderadas em torno da média.\n\nAs médias móveis calculadas com janela de 2 períodos evoluíram de 100.75 para 103.25, refletindo um leve movimento ascendente ao longo da sequência de valores 100.75, 101.15, 101.55, 102.65, 102.75 e 103.25. Não foram gerados alertas durante a análise.",
+      "error": ""
+    },
+    {
+      "symbol": "MSFT",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo MSFT apresentou um preço médio de 102.0143 ao longo de 7 pontos de dados, com variação entre 100.0 e 104.0. O desvio padrão de 1.3558 e a volatilidade percentual de 1.33 indicam um comportamento relativamente estável dentro desse intervalo.  \n\nA análise de médias móveis, calculada com janela de 2, mostra uma sequência ascendente de 100.75, 101.15, 101.55, 102.65, 102.75 e 103.25, refletindo uma tendência de alta gradual ao longo dos pontos de dados disponíveis.",
+      "error": ""
+    },
+    {
+      "symbol": "MSFT",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo MSFT foi analisado com sete pontos de dados em um cenário de dados simulados, apresentando preço médio de 102.0143, preço máximo de 104.0 e preço mínimo de 100.0. O desvio padrão registrado foi de 1.3558, enquanto a volatilidade percentual ficou em 1.33, indicando variações moderadas ao longo da janela analisada.\n\nA janela de média móvel considerada tem tamanho 2, gerando as médias móveis sequenciais de 100.75, 101.15, 101.55, 102.65, 102.75 e 103.25. Não foram identificados alertas durante a avaliação.",
+      "error": ""
+    },
+    {
+      "symbol": "MSFT",
+      "status": "llm_repaired",
+      "attempts": 2,
+      "blocked": [
+        [
+          "1.35"
+        ]
+      ],
+      "text": "A análise do ativo MSFT considera sete pontos de dados simulados, com preço médio de 102.0143, preço máximo de 104.0 e preço mínimo de 100.0. O desvio padrão observado foi de 1.3558, refletindo a dispersão dos preços dentro da amostra, enquanto a volatilidade percentual ficou em 1.33, indicando variações moderadas ao longo do período analisado.\n\nA janela de média móvel utilizada foi de 2, gerando médias móveis sequenciais de 100.75, 101.15, 101.55, 102.65, 102.75 e 103.25. Não foram identificados alertas durante a simulação, o que sugere ausência de sinais críticos de compra ou venda no conjunto de dados analisado.",
+      "error": ""
+    },
+    {
+      "symbol": "VALE3",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo VALE3 apresenta preço médio de 61.5571, com limite superior em 63.0 e limite inferior em 60.0 ao longo de 7 pontos de dados simulados, e a volatilidade percentual registra 1.64. O desvio padrão observado é de 1.0097, indicando variação ao redor da média durante o período analisado.\n\nA janela de média móvel considerada é de 2, gerando médias sequenciais de 60.6, 61.0, 61.4, 61.75, 62.25 e 62.7, o que evidencia um leve deslocamento ascendente nas médias ao longo dos pontos de dados disponíveis.",
+      "error": ""
+    },
+    {
+      "symbol": "VALE3",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo VALE3 apresenta preço médio de 61.56, com limites entre 60.0 e 63.0 ao longo de sete pontos de dados simulados. A volatilidade percentual de 1.64 indica variações moderadas, enquanto o desvio padrão de 1.01 reflete a dispersão dos preços em torno da média.  \n\nAs médias móveis, calculadas com janela de 2, evoluem de 60.6 para 62.7, sinalizando uma tendência de alta gradual ao longo da série analisada. Não foram identificados alertas durante o período observado.",
+      "error": ""
+    },
+    {
+      "symbol": "VALE3",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo apresentou preço médio de 61.5571, com um pico de 63.0 e um piso de 60.0 ao longo de 7 pontos de dados. A volatilidade percentual foi de 1.64 e o desvio padrão registrou 1.0097, indicando variações moderadas em torno da média.  \n\nA janela de média móvel utilizada foi de 2, gerando as médias móveis de 60.6, 61.0, 61.4, 61.75, 62.25 e 62.7, sem que nenhum alerta tenha sido disparado durante a análise.",
+      "error": ""
+    },
+    {
+      "symbol": "VALE3",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo VALE3 registrou preço médio de 61.5571, com preço máximo de 63.0 e preço mínimo de 60.0 ao longo de 7 pontos de dados, apresentando desvio padrão de 1.0097 e volatilidade percentual de 1.64.  \n\nAs médias móveis, calculadas com janela de 2 períodos, evoluíram de 60.6 para 62.7, refletindo um movimento ascendente ao longo das observações, sem geração de alertas.",
+      "error": ""
+    },
+    {
+      "symbol": "VALE3",
+      "status": "llm",
+      "attempts": 1,
+      "blocked": [],
+      "text": "O ativo VALE3 foi analisado com base em 7 pontos de dados, todos provenientes de dados simulados. O preço médio observado foi de 61.5571, com um preço máximo de 63.0 e um preço mínimo de 60.0, enquanto o desvio padrão registrou 1.0097 e a volatilidade percentual ficou em 1.64. A janela de média móvel considerada foi de 2 períodos.\n\nAs médias móveis calculadas ao longo da sequência apresentaram os valores 60.6, 61.0, 61.4, 61.75, 62.25 e 62.7, indicando uma evolução gradual ao longo dos períodos analisados. Não foram gerados alertas durante a avaliação.",
+      "error": ""
+    }
+  ]
+}
