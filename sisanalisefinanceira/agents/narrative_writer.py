@@ -47,6 +47,7 @@ class NarrativeResult:
     attempts: int = 0
     blocked_per_attempt: list[list[str]] = field(default_factory=list)
     model: str = ""
+    error: str = ""
 
     @property
     def accepted(self) -> bool:
@@ -99,11 +100,15 @@ class NarrativeWriterAgent:
             try:
                 text = (self.llm(SYSTEM_PROMPT, prompt) or "").strip()
             except Exception as exc:  # rede, chave inválida, limite de uso...
-                logger.warning(
-                    "Narrativa por LLM indisponível (%s); usando template.", exc.__class__.__name__
-                )
+                # A mensagem do LLMError traz o código HTTP e o erro do provedor (nunca a chave).
+                logger.warning("Narrativa por LLM indisponível (%s); usando template.", exc)
                 return NarrativeResult(
-                    None, "llm_error", attempt, blocked_history, self.model_label
+                    None,
+                    "llm_error",
+                    attempt,
+                    blocked_history,
+                    self.model_label,
+                    error=str(exc)[:300],
                 )
 
             result = guardrail.check(text)
