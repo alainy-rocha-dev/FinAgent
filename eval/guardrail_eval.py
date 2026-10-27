@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 from collections import Counter, defaultdict
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
@@ -132,7 +133,7 @@ def run_offline() -> dict:
     }
 
 
-def run_live(runs: int) -> dict:
+def run_live(runs: int, pause_s: float = 2.0) -> dict:
     from sisanalisefinanceira.agents.narrative_writer import NarrativeWriterAgent
     from sisanalisefinanceira.llm.client import client_from_env
 
@@ -145,6 +146,7 @@ def run_live(runs: int) -> dict:
 
     statuses: Counter = Counter()
     blocked_numbers: Counter = Counter()
+    errors: Counter = Counter()
     samples = []
     for symbol in SYMBOLS:
         raw = collector.fetch_data(symbol)
@@ -154,6 +156,12 @@ def run_live(runs: int) -> dict:
         for _ in range(runs):
             r = writer.write(raw, q)
             statuses[r.status] += 1
+            if r.error:
+                errors[r.error[:120]] += 1
+                # Chave inválida não melhora tentando de novo: para logo, sem gastar chamadas.
+                if "401" in r.error:
+                    raise SystemExit(f"Chave recusada pelo provedor: {r.error}")
+            time.sleep(pause_s)  # respeita o limite de requisições por minuto do plano gratuito
             for attempt in r.blocked_per_attempt:
                 blocked_numbers.update(attempt)
             samples.append(
@@ -163,18 +171,23 @@ def run_live(runs: int) -> dict:
                     "attempts": r.attempts,
                     "blocked": r.blocked_per_attempt,
                     "text": r.text,
+                    "error": r.error,
                 }
             )
     total = sum(statuses.values())
+    valid = total - statuses["llm_error"]  # execuções em que o LLM respondeu
     return {
         "mode": "live",
         "model": llm.label,
         "runs_per_symbol": runs,
         "total": total,
         "statuses": dict(statuses),
-        "approved_first_try": round(statuses["llm"] / total, 4) if total else None,
-        "approved_after_repair": round(statuses["llm_repaired"] / total, 4) if total else None,
-        "fell_back_to_template": round(statuses["fallback_template"] / total, 4) if total else None,
+        "llm_responded": valid,
+        # Taxas calculadas sobre as execuções em que o LLM respondeu.
+        "approved_first_try": round(statuses["llm"] / valid, 4) if valid else None,
+        "approved_after_repair": round(statuses["llm_repaired"] / valid, 4) if valid else None,
+        "fell_back_to_template": round(statuses["fallback_template"] / valid, 4) if valid else None,
+        "provider_errors": dict(errors),
         "most_blocked_numbers": blocked_numbers.most_common(10),
         "samples": samples,
     }
@@ -184,9 +197,12 @@ def main():
     parser = argparse.ArgumentParser(description="Avaliação do guardrail numérico do FinAgent")
     parser.add_argument("--live", action="store_true", help="Usa o LLM real (requer chave de API)")
     parser.add_argument("--runs", type=int, default=5, help="Execuções por ativo no modo live")
+    parser.add_argument(
+        "--pause", type=float, default=2.0, help="Segundos entre chamadas no modo live"
+    )
     args = parser.parse_args()
 
-    report = run_live(args.runs) if args.live else run_offline()
+    report = run_live(args.runs, args.pause) if args.live else run_offline()
     os.makedirs("eval/results", exist_ok=True)
     path = f"eval/results/guardrail_{report['mode']}_{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.json"
     with open(path, "w", encoding="utf-8") as f:
