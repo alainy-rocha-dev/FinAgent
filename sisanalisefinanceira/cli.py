@@ -8,8 +8,8 @@ import argparse
 import logging
 
 from sisanalisefinanceira.config import settings
-from sisanalisefinanceira.orchestrators.langgraph_orchestrator import LangGraphOrchestrator
-from sisanalisefinanceira.orchestrators.crewai_orchestrator import CrewAIOrchestrator
+from sisanalisefinanceira.orchestrators.stategraph_orchestrator import StateGraphOrchestrator
+from sisanalisefinanceira.orchestrators.chain_orchestrator import ChainOrchestrator
 from sisanalisefinanceira.agents.report_writer import ReportWriterAgent
 from sisanalisefinanceira.agents.narrative_writer import NarrativeWriterAgent
 from sisanalisefinanceira.llm.client import client_from_env
@@ -92,9 +92,9 @@ def main():
             print(f"Narrativa por LLM: {llm.label} (auditada pelo guardrail numerico)\n")
 
     if args.engine == "chain":
-        orchestrator = CrewAIOrchestrator(use_mock=args.mock, narrative_writer=narrative_writer)
+        orchestrator = ChainOrchestrator(use_mock=args.mock, narrative_writer=narrative_writer)
     else:
-        orchestrator = LangGraphOrchestrator(
+        orchestrator = StateGraphOrchestrator(
             max_iter=args.max_iter, use_mock=args.mock, narrative_writer=narrative_writer
         )
 

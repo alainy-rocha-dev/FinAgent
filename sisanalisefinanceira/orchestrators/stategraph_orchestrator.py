@@ -1,5 +1,6 @@
 """
-Orquestrador baseado no conceito de StateGraph (LangGraph) para o pipeline multiagente.
+Orquestrador no padrão StateGraph (máquina de estados iterativa) para o pipeline multiagente.
+Implementação própria: não usa a biblioteca LangGraph.
 """
 
 import logging
@@ -15,7 +16,7 @@ from sisanalisefinanceira.agents.narrative_writer import NarrativeWriterAgent
 logger = logging.getLogger(__name__)
 
 
-class LangGraphOrchestrator:
+class StateGraphOrchestrator:
     """Orquestrador StateGraph com suporte a controle estrito de iterações e contratos Pydantic."""
 
     def __init__(
@@ -35,14 +36,14 @@ class LangGraphOrchestrator:
 
         while state.iteration_count < self.max_iter:
             state.iteration_count += 1
-            logger.info(f"[LangGraph] Iteração {state.iteration_count}/{self.max_iter} iniciada para símbolo: {symbol}")
+            logger.info(f"[StateGraph] Iteração {state.iteration_count}/{self.max_iter} iniciada para símbolo: {symbol}")
 
             # Etapa 1: Coleta de dados
             if state.raw_data is None:
                 state.raw_data = self.collector.fetch_data(symbol)
                 if state.raw_data.metadata.get("error_code") == "INVALID_SYMBOL":
                     state.error_state = "INVALID_SYMBOL"
-                    logger.error(f"[LangGraph] Símbolo inválido: {symbol}")
+                    logger.error(f"[StateGraph] Símbolo inválido: {symbol}")
                     break
 
             # Etapa 2: Análise Quantitativa
@@ -50,7 +51,7 @@ class LangGraphOrchestrator:
                 state.quant_analysis = self.analyst.analyze(state.raw_data)
                 if state.quant_analysis.error_code:
                     state.error_state = state.quant_analysis.error_code
-                    logger.warning(f"[LangGraph] Alerta na análise quantitativa: {state.quant_analysis.error_code}")
+                    logger.warning(f"[StateGraph] Alerta na análise quantitativa: {state.quant_analysis.error_code}")
                     # Gerar relatório de erro controlado
                     report, _ = self.writer.generate_report(state.raw_data, state.quant_analysis)
                     state.final_report = report
@@ -61,15 +62,15 @@ class LangGraphOrchestrator:
                 report, is_valid = self.writer.generate_report(state.raw_data, state.quant_analysis)
                 if is_valid:
                     state.final_report = report
-                    logger.info("[LangGraph] Relatório final gerado com sucesso e validado anti-alucinação.")
+                    logger.info("[StateGraph] Relatório final gerado com sucesso e validado anti-alucinação.")
                     break
                 else:
-                    logger.warning("[LangGraph] Validação anti-alucinação falhou. Re-tentando iteração...")
+                    logger.warning("[StateGraph] Validação anti-alucinação falhou. Re-tentando iteração...")
                     continue
 
         # Verificação de limite máximo de iterações atingido sem sucesso
         if state.final_report is None and state.error_state is None:
             state.error_state = "MAX_ITER_REACHED"
-            logger.error(f"[LangGraph] Limite máximo de {self.max_iter} iterações atingido. Estado abortado.")
+            logger.error(f"[StateGraph] Limite máximo de {self.max_iter} iterações atingido. Estado abortado.")
 
         return state

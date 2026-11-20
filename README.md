@@ -3,9 +3,15 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
 
+📖 **Architecture docs (interactive):** [alainy-rocha-dev.github.io/FinAgent](https://alainy-rocha-dev.github.io/FinAgent/)
+
 FinAgent analyzes market data (stocks and currencies) with a pipeline of specialized agents and produces an executive report in Markdown.
 Its design principle: **every number in the report is computed by code** — a language model never does arithmetic.
 Optionally, an LLM writes the analysis in natural language, and a **numeric guardrail blocks any number in that text that did not come from the calculation**.
+
+![Numeric guardrail demo: the LLM draft is blocked for a truncated number and an invented price target, then approved after the repair loop](docs/media/guardrail_demo.gif)
+
+*Offline demo (`python -m eval.demo_guardrail`, no API key): the pipeline, the guardrail and the repair loop are the real code; only the two LLM answers are scripted, so the run is reproducible. Results with a real model are [below](#with-a-real-llm).*
 
 It uses [AgentPulse API](https://github.com/alainy-rocha-dev/AgentPulse-API) (folder `automacao_agentes`, as a git submodule) as the execution layer.
 
@@ -94,6 +100,9 @@ python -m sisanalisefinanceira.cli --symbol USD/BRL --engine chain
 # Try live data from Yahoo Finance (may hit rate limits)
 python -m sisanalisefinanceira.cli --symbol PETR4 --no-mock
 
+# Guardrail demo without an API key (scripted LLM, real guardrail)
+python -m eval.demo_guardrail
+
 # LLM-written analysis, audited by the numeric guardrail
 export GROQ_API_KEY=...        # or OPENAI_API_KEY (Windows PowerShell: $env:GROQ_API_KEY="...")
 python -m sisanalisefinanceira.cli --symbol AAPL --narrative llm
@@ -165,13 +174,16 @@ sisanalisefinanceira/
 ├── llm/
 │   └── client.py            # Groq / OpenAI chat-completions client
 ├── orchestrators/
-│   ├── crewai_orchestrator.py     # chain-style pattern
-│   └── langgraph_orchestrator.py  # stategraph-style pattern
+│   ├── chain_orchestrator.py      # chain-style pattern
+│   └── stategraph_orchestrator.py # stategraph-style pattern
 └── utils/logging.py
 src/                         # infrastructure layer (in progress)
 eval/guardrail_eval.py       # guardrail evaluation (offline / live)
+eval/demo_guardrail.py       # offline guardrail demo (scripted LLM, no API key)
 tests/                       # pytest suite
 reports/                     # generated reports
+docs/                        # architecture mini-site (GitHub Pages) and media
+tools/docs-screenshots/      # Playwright script for docs screenshots
 ```
 
 ## License

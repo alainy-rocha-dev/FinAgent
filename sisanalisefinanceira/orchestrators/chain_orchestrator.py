@@ -1,5 +1,6 @@
 """
-Orquestrador de encadeamento de tarefas (Task Chaining) no estilo CrewAI.
+Orquestrador de encadeamento de tarefas (Task Chaining).
+Implementação própria: não usa a biblioteca CrewAI.
 """
 
 import logging
@@ -14,8 +15,8 @@ from sisanalisefinanceira.agents.narrative_writer import NarrativeWriterAgent
 logger = logging.getLogger(__name__)
 
 
-class CrewAIOrchestrator:
-    """Orquestrador baseado no paradigma de encadeamento de tarefas e contextos (CrewAI Adapter)."""
+class ChainOrchestrator:
+    """Orquestrador baseado no paradigma de encadeamento de tarefas e contextos ."""
 
     def __init__(
         self,
@@ -28,7 +29,7 @@ class CrewAIOrchestrator:
 
     def run(self, symbol: str) -> AgentState:
         """Executa a sequência de Tasks encadeadas entre os 3 agentes."""
-        logger.info(f"[CrewAI] Iniciando execução em cadeia para símbolo: {symbol}")
+        logger.info(f"[Chain] Iniciando execução em cadeia para símbolo: {symbol}")
         state = AgentState(input_params={"symbol": symbol}, iteration_count=1)
 
         # Task 1: Coleta de Dados
@@ -52,7 +53,7 @@ class CrewAIOrchestrator:
         state.final_report = final_report
         
         if not is_valid:
-            logger.warning("[CrewAI] Relatório final apresentou pequenos desalinhamentos de validação.")
+            logger.warning("[Chain] Relatório final apresentou pequenos desalinhamentos de validação.")
 
-        logger.info("[CrewAI] Execução finalizada com sucesso.")
+        logger.info("[Chain] Execução finalizada com sucesso.")
         return state
