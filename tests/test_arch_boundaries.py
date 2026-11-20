@@ -1,6 +1,6 @@
 """Architectural test: domain must not import infra."""
+
 import ast
-import os
 from pathlib import Path
 
 
@@ -17,15 +17,15 @@ def test_domain_no_infra_imports():
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     for prefix in infra_prefixes:
-                        assert not alias.name.startswith(prefix), (
-                            f"{py_file}: Domain imports infra: {alias.name}"
-                        )
+                        assert not alias.name.startswith(
+                            prefix
+                        ), f"{py_file}: Domain imports infra: {alias.name}"
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
                     for prefix in infra_prefixes:
-                        assert not node.module.startswith(prefix), (
-                            f"{py_file}: Domain imports from infra: {node.module}"
-                        )
+                        assert not node.module.startswith(
+                            prefix
+                        ), f"{py_file}: Domain imports from infra: {node.module}"
 
 
 def test_infra_can_import_domain():

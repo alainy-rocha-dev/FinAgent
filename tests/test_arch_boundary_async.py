@@ -4,11 +4,8 @@ Este teste deve ser executado junto com o CI de T026b.
 """
 
 import ast
-import importlib
 import os
 import sys
-
-import pytest
 
 # Caminho absoluto do pacote a ser inspecionado
 DB_MODULE_PATH = os.path.join(os.path.dirname(__file__), "..", "src", "infra", "db", "pools.py")
@@ -35,7 +32,7 @@ def _has_async_patterns(module_code: str) -> bool:
 
 def _load_pools_source() -> str:
     """Carrega o código-fonte do pools.py para inspeção."""
-    with open(DB_MODULE_PATH, "r", encoding="utf-8") as f:
+    with open(DB_MODULE_PATH, encoding="utf-8") as f:
         return f.read()
 
 
@@ -64,10 +61,17 @@ def test_architecture_gate():
     # 3. Remover "import asyncpg"
     # 4. Rodar pytest tests/test_arch_boundary_async.py -> deve PASSAR
     import subprocess
+
     result = subprocess.run(
-        [sys.executable, "-c",
-         "import ast; tree=ast.parse(open('src/infra/db/pools.py').read()); "
-         "print('asyncpg found' if any(n.name=='asyncpg' for n in ast.walk(tree) if isinstance(n,ast.Import) for n in [n]) else 'ok')"],
-        capture_output=True, text=True
+        [
+            sys.executable,
+            "-c",
+            "import ast; tree=ast.parse(open('src/infra/db/pools.py').read()); "
+            "print('asyncpg found' if any(n.name=='asyncpg' for n in ast.walk(tree) if isinstance(n,ast.Import) for n in [n]) else 'ok')",
+        ],
+        capture_output=True,
+        text=True,
     )
-    assert "asyncpg found" not in result.stdout, "import asyncpg encontrado — teste de fronteira falhou"
+    assert (
+        "asyncpg found" not in result.stdout
+    ), "import asyncpg encontrado — teste de fronteira falhou"

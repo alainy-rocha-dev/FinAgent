@@ -11,6 +11,7 @@ Marcadores:
 - @pytest.mark.unit: testes unitarios (mocks, sem Postgres)
 - @pytest.mark.integration: testes de integracao (requer Postgres real)
 """
+
 import os
 import uuid
 from unittest.mock import MagicMock, patch
@@ -21,6 +22,7 @@ import pytest
 # ============================================================================
 # Fixtures e utilidades
 # ============================================================================
+
 
 @pytest.fixture
 def pg_dsn():
@@ -34,6 +36,7 @@ def pg_dsn():
 # ============================================================================
 # 1. Formula de dimensionamento + teste de nao-travamento na lock_conn
 # ============================================================================
+
 
 @pytest.mark.unit
 def test_pool_sizing_formula():
@@ -80,6 +83,7 @@ def test_pool_sizing_no_deadlock_on_lock_conn():
 # ============================================================================
 # 2. pg_terminate_backend: conexao cai -> pool reconecta
 # ============================================================================
+
 
 @pytest.mark.integration
 def test_pg_terminate_backend_reconnects(pg_dsn):
@@ -157,6 +161,7 @@ def test_pg_terminate_backend_reconnects(pg_dsn):
 # ============================================================================
 # 3. Advisory lock: dois consumidores disputam mesmo task_id
 # ============================================================================
+
 
 @pytest.mark.unit
 def test_advisory_lock_key_generation_deterministic():
@@ -352,6 +357,7 @@ def test_advisory_lock_released_when_connection_dies(pg_dsn):
 # 4. Criacao pos-fork: falha se pool criado no import
 # ============================================================================
 
+
 @pytest.mark.unit
 def test_pools_created_post_fork_not_on_import():
     """
@@ -364,10 +370,12 @@ def test_pools_created_post_fork_not_on_import():
     pools_module.close_worker_pools()
 
     # Mock da config e das dependencias (PsycopgPool, dict_row, psycopg)
-    with patch('src.infra.db.pools.get_config') as mock_get_config, \
-         patch('src.infra.db.pools.PsycopgPool') as mock_pool_class, \
-         patch('src.infra.db.pools.dict_row', lambda x: x), \
-         patch('src.infra.db.pools.psycopg') as mock_psycopg:
+    with (
+        patch("src.infra.db.pools.get_config") as mock_get_config,
+        patch("src.infra.db.pools.PsycopgPool") as mock_pool_class,
+        patch("src.infra.db.pools.dict_row", lambda x: x),
+        patch("src.infra.db.pools.psycopg") as mock_psycopg,
+    ):
         mock_config = MagicMock()
         mock_config.database_url = "postgresql://test:test@localhost/test"
         mock_get_config.return_value = mock_config
@@ -408,6 +416,7 @@ def test_pools_created_post_fork_not_on_import():
 # ============================================================================
 # 5. Chave do lock: UUID -> duas chaves int64 (bits do UUID, determinístico)
 # ============================================================================
+
 
 @pytest.mark.unit
 def test_advisory_lock_hash_split_32_32():
@@ -494,6 +503,7 @@ def test_advisory_lock_keys_same_across_processes():
 # 6. Integracao: context managers funcionam corretamente
 # ============================================================================
 
+
 @pytest.mark.unit
 def test_domain_connection_context_manager_commit_rollback():
     """
@@ -506,7 +516,7 @@ def test_domain_connection_context_manager_commit_rollback():
     mock_conn = MagicMock()
     mock_pool.getconn.return_value = mock_conn
 
-    with patch('src.infra.db.pools._domain_pool', mock_pool):
+    with patch("src.infra.db.pools._domain_pool", mock_pool):
         # Sucesso -> commit
         with get_domain_connection() as conn:
             assert conn == mock_conn
@@ -520,7 +530,7 @@ def test_domain_connection_context_manager_commit_rollback():
 
     # Excecao -> rollback
     try:
-        with patch('src.infra.db.pools._domain_pool', mock_pool):
+        with patch("src.infra.db.pools._domain_pool", mock_pool):
             with get_domain_connection() as conn:
                 raise ValueError("Erro forçado")
     except ValueError:
@@ -542,7 +552,7 @@ def test_checkpoint_connection_context_manager_autocommit():
     mock_conn = MagicMock()
     mock_pool.getconn.return_value = mock_conn
 
-    with patch('src.infra.db.pools._checkpoint_pool', mock_pool):
+    with patch("src.infra.db.pools._checkpoint_pool", mock_pool):
         with get_checkpoint_connection() as conn:
             assert conn == mock_conn
 
@@ -555,6 +565,7 @@ def test_checkpoint_connection_context_manager_autocommit():
 # ============================================================================
 # 7. Tamanhos dos pools
 # ============================================================================
+
 
 @pytest.mark.unit
 def test_pool_sizes_respected():
@@ -574,7 +585,7 @@ def test_pool_sizes_respected():
 
     from src.infra.db import pools as pools_module
 
-    with patch.object(pools_module, '_domain_pool', mock_pool):
+    with patch.object(pools_module, "_domain_pool", mock_pool):
         conns = []
         for _ in range(3):
             conn = pools_module._domain_pool.getconn()
@@ -594,12 +605,16 @@ def test_calculate_pool_sizes_formula():
     from src.infra.db.pools import calculate_global_connection_budget, calculate_pool_sizes
 
     # Caso padrão: por processo filho Celery
-    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=2, checkpoint_conexoes_por_filho=1)
+    domain_size, checkpoint_size = calculate_pool_sizes(
+        conexoes_por_filho=2, checkpoint_conexoes_por_filho=1
+    )
     assert domain_size == 2
     assert checkpoint_size == 1
 
     # Caso customizado por processo
-    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=4, checkpoint_conexoes_por_filho=2)
+    domain_size, checkpoint_size = calculate_pool_sizes(
+        conexoes_por_filho=4, checkpoint_conexoes_por_filho=2
+    )
     assert domain_size == 4
     assert checkpoint_size == 2
 
@@ -619,12 +634,18 @@ def test_calculate_pool_sizes_formula():
 # 8. Tradução de erros por SQLSTATE (_translate_db_error)
 # ============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.parametrize(
     "sqlstate,exc_cls,expected_type,expected_label",
     [
         # Transitórios: conexão perdida (classe 08)
-        ("08001", psycopg.OperationalError, "transient", "sqlclient_unable_to_establish_sqlconnection"),
+        (
+            "08001",
+            psycopg.OperationalError,
+            "transient",
+            "sqlclient_unable_to_establish_sqlconnection",
+        ),
         ("08006", psycopg.OperationalError, "transient", "connection_failure"),
         # Transitórios: shutdown de servidor (classe 57P)
         ("57P01", psycopg.OperationalError, "transient", "admin_shutdown"),
@@ -665,9 +686,13 @@ def test_translate_db_error_sqlstate_parametrized(sqlstate, exc_cls, expected_ty
     res = _translate_db_error(err)
 
     if expected_type == "transient":
-        assert isinstance(res, TransientError), f"SQLSTATE {sqlstate} ({expected_label}) deveria ser TransientError"
+        assert isinstance(
+            res, TransientError
+        ), f"SQLSTATE {sqlstate} ({expected_label}) deveria ser TransientError"
     else:
-        assert isinstance(res, PermanentError), f"SQLSTATE {sqlstate} ({expected_label}) deveria ser PermanentError"
+        assert isinstance(
+            res, PermanentError
+        ), f"SQLSTATE {sqlstate} ({expected_label}) deveria ser PermanentError"
 
 
 @pytest.mark.unit

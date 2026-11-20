@@ -6,6 +6,7 @@ Este teste valida que o worker não trava esperando uma conexão quando:
 - lock_conn é dedicada (1 conexão)
 - O ciclo completo (lock, transação de domínio, checkpoint) roda com timeout curto
 """
+
 import os
 import time
 import uuid
@@ -39,6 +40,7 @@ def pg_dsn():
 def setup_database(pg_dsn):
     """Create database schema for integration tests."""
     import psycopg
+
     conn = psycopg.connect(pg_dsn, autocommit=True)
     try:
         with conn.cursor() as cur:
@@ -122,7 +124,9 @@ def setup_database(pg_dsn):
 
 def _pool_config_min() -> dict:
     """Configuração de pool com tamanhos constantes por processo worker."""
-    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=2, checkpoint_conexoes_por_filho=1)
+    domain_size, checkpoint_size = calculate_pool_sizes(
+        conexoes_por_filho=2, checkpoint_conexoes_por_filho=1
+    )
     # Para teste de deadlock, usamos max_size = min_size = 1
     return {
         "domain_pool_size": domain_size,
@@ -138,7 +142,9 @@ def worker_pools_min(pg_dsn):
     # Set DATABASE_URL for config
     os.environ["DATABASE_URL"] = pg_dsn
     cfg = _pool_config_min()
-    init_worker_pools(domain_pool_size=cfg["min_domain"], checkpoint_pool_size=cfg["min_checkpoint"])
+    init_worker_pools(
+        domain_pool_size=cfg["min_domain"], checkpoint_pool_size=cfg["min_checkpoint"]
+    )
     yield cfg
     close_worker_pools()
 
@@ -148,7 +154,9 @@ def worker_pools_normal(pg_dsn):
     """Inicializa pools com tamanhos normais (fórmula) para comparação."""
     os.environ["DATABASE_URL"] = pg_dsn
     cfg = _pool_config_min()
-    init_worker_pools(domain_pool_size=cfg["domain_pool_size"], checkpoint_pool_size=cfg["checkpoint_pool_size"])
+    init_worker_pools(
+        domain_pool_size=cfg["domain_pool_size"], checkpoint_pool_size=cfg["checkpoint_pool_size"]
+    )
     yield cfg
     close_worker_pools()
 
@@ -335,7 +343,11 @@ def test_pool_below_minimum_times_out(pg_dsn):
             with pytest.raises(TransientError) as exc_info:
                 _full_cycle(task_id, lock_conn, timeout_seconds=1.0)
 
-            assert "Erro transitório" in str(exc_info.value) or "couldn't get a connection" in str(exc_info.value) or "timeout" in str(exc_info.value).lower()
+            assert (
+                "Erro transitório" in str(exc_info.value)
+                or "couldn't get a connection" in str(exc_info.value)
+                or "timeout" in str(exc_info.value).lower()
+            )
     finally:
         close_worker_pools()
 
@@ -353,10 +365,14 @@ def test_pool_sizing_formula_matches_documented(pg_dsn):
     os.environ["DATABASE_URL"] = pg_dsn
 
     # 1. Tamanhos por processo worker (constantes por processo filho Celery)
-    domain_size, checkpoint_size = calculate_pool_sizes(conexoes_por_filho=2, checkpoint_conexoes_por_filho=1)
+    domain_size, checkpoint_size = calculate_pool_sizes(
+        conexoes_por_filho=2, checkpoint_conexoes_por_filho=1
+    )
 
     assert domain_size == 2, f"domain_pool_size por processo esperado 2, obtido {domain_size}"
-    assert checkpoint_size == 1, f"checkpoint_pool_size por processo esperado 1, obtido {checkpoint_size}"
+    assert (
+        checkpoint_size == 1
+    ), f"checkpoint_pool_size por processo esperado 1, obtido {checkpoint_size}"
 
     # 2. Orçamento global: API + workers x filhos x conexões por filho + margem <= max_connections
     # Exemplo documentado: API 10, 1 worker com 4 filhos, 4 conexões por filho (2 domain + 1 cp + 1 lock), margem 4
@@ -375,6 +391,7 @@ def test_pool_sizing_formula_matches_documented(pg_dsn):
     try:
         # Verifica que pools foram criados com os tamanhos corretos
         from src.infra.db import pools as pools_module
+
         assert pools_module._domain_pool.max_size == domain_size
         assert pools_module._checkpoint_pool.max_size == checkpoint_size
         assert pools_module._domain_pool.min_size == 1

@@ -1,7 +1,7 @@
 """Test that config loads defaults and environment variables correctly."""
-import os
-import pytest
+
 from pathlib import Path
+
 import yaml
 
 
@@ -19,9 +19,19 @@ def test_config_loads_28_parameters():
 
     # Count top-level sections (should be 18 main sections)
     expected_sections = [
-        "app", "database", "redis", "celery", "langgraph",
-        "idempotency", "data_quality", "budget", "approval",
-        "observability", "chaos", "simulated", "api"
+        "app",
+        "database",
+        "redis",
+        "celery",
+        "langgraph",
+        "idempotency",
+        "data_quality",
+        "budget",
+        "approval",
+        "observability",
+        "chaos",
+        "simulated",
+        "api",
     ]
 
     for section in expected_sections:
