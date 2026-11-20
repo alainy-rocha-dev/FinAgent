@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>sisanalisefinanceira — Mini-Site da Documentação</title>
+    <title>FinAgent — Documentação de Arquitetura</title>
     <meta name="reversa-category" content="index">
     <meta name="reversa-producer-agent" content="reversa-docs-publisher">
     <style>
@@ -75,6 +75,15 @@
             max-width: 550px;
             line-height: 1.6;
         }
+        .hero-text p.hero-note {
+            margin-top: 14px;
+            padding: 10px 14px;
+            border-left: 3px solid #58a6ff;
+            background: rgba(88, 166, 255, 0.08);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .hero-note a { color: #58a6ff; }
         .hero-badge {
             display: inline-block;
             background: rgba(35, 134, 54, 0.2);
@@ -154,7 +163,8 @@
         <div class="hero-text">
             <div class="hero-badge">📊 Sistema Multiagentes de Análise Financeira</div>
             <h1>Documentação Arquitetural</h1>
-            <p>Documentação interativa gerada para o seu portfólio profissional. Explore a Cidade do Código 3D, grafos de dependência, métricas quantitativas e especificações técnicas.</p>
+            <p>Como o FinAgent é organizado: os agentes especialistas, os dois padrões de orquestração e as salvaguardas que garantem que todo número do relatório venha do cálculo, nunca de um modelo de linguagem.</p>
+            <p class="hero-note">Este mapa foi gerado a partir do código antes da narrativa por LLM. O guardrail numérico (que bloqueia qualquer número inventado pelo LLM) e seus resultados estão no <a href="https://github.com/alainy-rocha-dev/FinAgent#llm-narrative-with-a-numeric-guardrail">README do projeto</a>.</p>
         </div>
     </div>
 
@@ -181,7 +191,7 @@
                 <div>
                     <div class="card-icon">📊</div>
                     <div class="card-title">Painel de Métricas</div>
-                    <div class="card-desc">Dashboards interativos com distribuição de linhas de código, complexidade e relatório de confiança de 95,7%.</div>
+                    <div class="card-desc">Dashboards interativos com a distribuição de linhas de código e a complexidade de cada módulo.</div>
                 </div>
             </a>
 
@@ -208,7 +218,7 @@
                 <div>
                     <div class="card-icon">⚙️</div>
                     <div class="card-title">Módulo: Orquestradores</div>
-                    <div class="card-desc">Motores LangGraph (grafo de estados com limite de iterações) e CrewAI (encadeamento de tarefas).</div>
+                    <div class="card-desc">Padrões StateGraph (máquina de estados com limite de iterações) e Chain (encadeamento de tarefas), implementados do zero, sem as bibliotecas LangGraph e CrewAI.</div>
                 </div>
             </a>
 

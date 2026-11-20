@@ -99,6 +99,18 @@
             font-size: 0.8rem;
             color: #8b949e;
         }
+        .kpi-sub {
+            font-size: 0.75rem;
+            color: #8b949e;
+            margin-top: 4px;
+        }
+        .kpi-note {
+            font-size: 0.85rem;
+            color: #8b949e;
+            margin: 12px 0 24px;
+            line-height: 1.5;
+        }
+        .kpi-note a { color: #58a6ff; }
         #chart-loc, #chart-treemap {
             height: 340px;
         }
@@ -119,22 +131,27 @@
     <div class="container">
         <div class="kpi-row">
             <div class="kpi-card">
-                <div class="kpi-label">Linhas de Código (LOC)</div>
-                <div class="kpi-value">650</div>
+                <div class="kpi-label">Linhas de código Python</div>
+                <div class="kpi-value">1.203</div>
+                <div class="kpi-sub">pacote sisanalisefinanceira/</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Arquivos do Módulo</div>
-                <div class="kpi-value">12</div>
+                <div class="kpi-label">Arquivos Python</div>
+                <div class="kpi-value">18</div>
+                <div class="kpi-sub">agentes, guardrail, LLM, orquestradores</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Confiança da Extração</div>
-                <div class="kpi-value">95.7%</div>
+                <div class="kpi-label">Detecção do guardrail</div>
+                <div class="kpi-value">98%</div>
+                <div class="kpi-sub">49 de 50 números alterados ou inventados</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Validação Anti-Alucinação</div>
-                <div class="kpi-value">100%</div>
+                <div class="kpi-label">Falsos positivos</div>
+                <div class="kpi-value">0%</div>
+                <div class="kpi-sub">0 de 40 frases legítimas bloqueadas</div>
             </div>
         </div>
+        <p class="kpi-note">Contagens do código atual. Os números do guardrail vêm da <a href="https://github.com/alainy-rocha-dev/FinAgent#guardrail-evaluation">avaliação publicada no README</a>. Linhas contadas por arquivo, incluindo comentários e linhas em branco.</p>
 
         <div class="grid">
             <div class="card">
@@ -142,7 +159,7 @@
                 <div id="chart-loc"></div>
             </div>
             <div class="card">
-                <h3>🌳 Treemap de Complexidade de Código</h3>
+                <h3>🌳 Tamanho por arquivo</h3>
                 <div id="chart-treemap"></div>
             </div>
         </div>
@@ -158,11 +175,11 @@
 
         Highcharts.chart('chart-loc', {
             chart: { type: 'bar' },
-            xAxis: { categories: ['Agentes', 'Orquestradores', 'Núcleo / Schemas', 'Utilitários'], labels: { style: { color: '#c9d1d9' } } },
+            xAxis: { categories: ['Agentes', 'Núcleo (CLI, config, schemas)', 'Orquestradores', 'Cliente LLM', 'Guardrail numérico', 'Utilitários'], labels: { style: { color: '#c9d1d9' } } },
             yAxis: { title: { text: 'Linhas de Código (LOC)', style: { color: '#8b949e' } }, labels: { style: { color: '#c9d1d9' } } },
             series: [{
-                name: 'LOC Estimado',
-                data: [320, 180, 110, 40],
+                name: 'Linhas de código',
+                data: [571, 201, 136, 132, 128, 35],
                 color: '#58a6ff'
             }]
         });
@@ -172,13 +189,17 @@
                 type: 'treemap',
                 layoutAlgorithm: 'squarified',
                 data: [
-                    { name: 'Agentes: Relator (report_writer.py)', value: 140, color: '#3fb950' },
-                    { name: 'Agentes: Analista (quant_analyst.py)', value: 139, color: '#58a6ff' },
-                    { name: 'Agentes: Coletor (data_collector.py)', value: 95, color: '#d29922' },
-                    { name: 'Orquestrador: LangGraph', value: 70, color: '#a371f7' },
-                    { name: 'Orquestrador: CrewAI', value: 53, color: '#8957e5' },
-                    { name: 'CLI & Schemas', value: 60, color: '#79c0ff' },
-                    { name: 'Utilitários: Logs', value: 35, color: '#f0883e' }
+                    { name: 'Relator (report_writer.py)', value: 209, color: '#3fb950' },
+                    { name: 'Analista (quant_analyst.py)', value: 138, color: '#58a6ff' },
+                    { name: 'Narrativa LLM (narrative_writer.py)', value: 129, color: '#2ea043' },
+                    { name: 'CLI (cli.py)', value: 126, color: '#79c0ff' },
+                    { name: 'Cliente LLM (client.py)', value: 126, color: '#db61a2' },
+                    { name: 'Guardrail (numeric.py)', value: 122, color: '#f85149' },
+                    { name: 'Coletor (data_collector.py)', value: 94, color: '#d29922' },
+                    { name: 'StateGraph (stategraph_orchestrator.py)', value: 76, color: '#a371f7' },
+                    { name: 'Chain (chain_orchestrator.py)', value: 59, color: '#8957e5' },
+                    { name: 'Schemas + config', value: 70, color: '#56d4dd' },
+                    { name: 'Logs (logging.py)', value: 34, color: '#f0883e' }
                 ]
             }]
         });

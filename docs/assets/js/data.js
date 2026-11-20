@@ -2,10 +2,10 @@ window.RV_DATA = {
   projectName: "FinAgent",
   seedShort: "d8b28f80",
   modules: {
-    "agentes": { "file_count": 4, "loc": 320, "complexity": "média", "purpose": "Agentes especialistas (Coletor, Analista, Relator)" },
-    "orquestradores": { "file_count": 3, "loc": 180, "complexity": "média", "purpose": "Motores de orquestração (LangGraph / CrewAI)" },
-    "utilitarios": { "file_count": 2, "loc": 40, "complexity": "baixa", "purpose": "Logs e salvaguardas" },
-    "nucleo": { "file_count": 3, "loc": 110, "complexity": "baixa", "purpose": "CLI, Configuração e Schemas Pydantic" }
+    "agentes": { "file_count": 5, "loc": 571, "complexity": "média", "purpose": "Agentes especialistas (Coletor, Analista, Relator, Narrativa LLM)" },
+    "orquestradores": { "file_count": 3, "loc": 136, "complexity": "média", "purpose": "Padrões de orquestração StateGraph e Chain (implementação própria)" },
+    "utilitarios": { "file_count": 2, "loc": 35, "complexity": "baixa", "purpose": "Logs e salvaguardas" },
+    "nucleo": { "file_count": 4, "loc": 201, "complexity": "baixa", "purpose": "CLI, Configuração e Schemas Pydantic" }
   },
   deps: {
     "nodes": [
@@ -23,17 +23,16 @@ window.RV_DATA = {
     "cycles": []
   },
   metrics: {
-    "total_files": 12,
-    "total_loc": 650,
-    "confidence_general": "95.7%",
-    "modules_count": 3
+    "total_files": 18,
+    "total_loc": 1203,
+    "modules_count": 6
   },
   glossary: [
     { "term": "Símbolo / Ticker", "def": "Identificador único de ativo financeiro ou par de moedas (ex: AAPL, PETR4, USD/BRL)." },
     { "term": "Payload de Dados de Mercado", "def": "Dados brutos de preços históricos e volume coletados de APIs de mercado ou base simulada." },
     { "term": "Métricas Quantitativas", "def": "Cálculos estatísticos determinísticos sem risco de alucinação por IA." },
     { "term": "Validação Anti-Alucinação", "def": "Camada de auditoria que valida a precisão numérica antes de salvar o relatório." },
-    { "term": "Salvaguarda de Iterações Máximas", "def": "Interrupção de segurança do motor LangGraph ao atingir o limite estipulado de iterações." }
+    { "term": "Salvaguarda de Iterações Máximas", "def": "Interrupção de segurança do orquestrador StateGraph ao atingir o limite estipulado de iterações." }
   ],
   featuresIndex: {
     "agents": "features/agents.html",
