@@ -7,6 +7,10 @@ FinAgent analyzes market data (stocks and currencies) with a pipeline of special
 Its design principle: **every number in the report is computed by code** — a language model never does arithmetic.
 Optionally, an LLM writes the analysis in natural language, and a **numeric guardrail blocks any number in that text that did not come from the calculation**.
 
+![Numeric guardrail demo: the LLM draft is blocked for a truncated number and an invented price target, then approved after the repair loop](docs/media/guardrail_demo.gif)
+
+*Offline demo (`python -m eval.demo_guardrail`, no API key): the pipeline, the guardrail and the repair loop are the real code; only the two LLM answers are scripted, so the run is reproducible. Results with a real model are [below](#with-a-real-llm).*
+
 It uses [AgentPulse API](https://github.com/alainy-rocha-dev/AgentPulse-API) (folder `automacao_agentes`, as a git submodule) as the execution layer.
 
 ---
@@ -93,6 +97,9 @@ python -m sisanalisefinanceira.cli --symbol USD/BRL --engine chain
 
 # Try live data from Yahoo Finance (may hit rate limits)
 python -m sisanalisefinanceira.cli --symbol PETR4 --no-mock
+
+# Guardrail demo without an API key (scripted LLM, real guardrail)
+python -m eval.demo_guardrail
 
 # LLM-written analysis, audited by the numeric guardrail
 export GROQ_API_KEY=...        # or OPENAI_API_KEY (Windows PowerShell: $env:GROQ_API_KEY="...")
