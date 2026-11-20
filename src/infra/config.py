@@ -136,8 +136,15 @@ class Config:
         """Conta parâmetros 'a medir' (exclui metadados e secrets)."""
         count = 0
         for f in fields(self):
-            if f.name in ("database_url", "app_env", "allow_simulated_publication",
-                          "openai_api_key", "anthropic_api_key", "redis_url", "versions"):
+            if f.name in (
+                "database_url",
+                "app_env",
+                "allow_simulated_publication",
+                "openai_api_key",
+                "anthropic_api_key",
+                "redis_url",
+                "versions",
+            ):
                 continue
             if f.name == "stale_max_age_days":
                 count += 4  # equity, fx, crypto, other
@@ -150,6 +157,7 @@ class Config:
 
 class Settings(BaseSettings):
     """Configuração via variáveis de ambiente (pydantic-settings)."""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -248,16 +256,28 @@ def load_config(config_path: str | None = None) -> Config:
         return value if value is not None else default
 
     stale = StaleConfig(
-        equity=get_env("STALE_MAX_AGE_EQUITY", yaml_data.get("stale_max_age_days", {}).get("equity", 5)),
+        equity=get_env(
+            "STALE_MAX_AGE_EQUITY", yaml_data.get("stale_max_age_days", {}).get("equity", 5)
+        ),
         fx=get_env("STALE_MAX_AGE_FX", yaml_data.get("stale_max_age_days", {}).get("fx", 3)),
-        crypto=get_env("STALE_MAX_AGE_CRYPTO", yaml_data.get("stale_max_age_days", {}).get("crypto", 1)),
-        other=get_env("STALE_MAX_AGE_OTHER", yaml_data.get("stale_max_age_days", {}).get("other", 5)),
+        crypto=get_env(
+            "STALE_MAX_AGE_CRYPTO", yaml_data.get("stale_max_age_days", {}).get("crypto", 1)
+        ),
+        other=get_env(
+            "STALE_MAX_AGE_OTHER", yaml_data.get("stale_max_age_days", {}).get("other", 5)
+        ),
     )
 
     rate_limit = RateLimitConfig(
-        tasks_post=get_env("RATE_LIMIT_TASKS_POST", yaml_data.get("rate_limit", {}).get("tasks_post", 10)),
-        tasks_get=get_env("RATE_LIMIT_TASKS_GET", yaml_data.get("rate_limit", {}).get("tasks_get", 30)),
-        approve_reject=get_env("RATE_LIMIT_APPROVE_REJECT", yaml_data.get("rate_limit", {}).get("approve_reject", 20)),
+        tasks_post=get_env(
+            "RATE_LIMIT_TASKS_POST", yaml_data.get("rate_limit", {}).get("tasks_post", 10)
+        ),
+        tasks_get=get_env(
+            "RATE_LIMIT_TASKS_GET", yaml_data.get("rate_limit", {}).get("tasks_get", 30)
+        ),
+        approve_reject=get_env(
+            "RATE_LIMIT_APPROVE_REJECT", yaml_data.get("rate_limit", {}).get("approve_reject", 20)
+        ),
     )
 
     # Extrai versões do YAML (comentários no final do arquivo)
@@ -268,29 +288,49 @@ def load_config(config_path: str | None = None) -> Config:
 
     _config_instance = Config(
         approval_ttl_hours=get_env("APPROVAL_TTL_HOURS", yaml_data.get("approval_ttl_hours", 168)),
-        monthly_token_budget=get_env("MONTHLY_TOKEN_BUDGET", yaml_data.get("monthly_token_budget", 1_000_000)),
-        token_budget_per_task=get_env("TOKEN_BUDGET_PER_TASK", yaml_data.get("token_budget_per_task", 50_000)),
+        monthly_token_budget=get_env(
+            "MONTHLY_TOKEN_BUDGET", yaml_data.get("monthly_token_budget", 1_000_000)
+        ),
+        token_budget_per_task=get_env(
+            "TOKEN_BUDGET_PER_TASK", yaml_data.get("token_budget_per_task", 50_000)
+        ),
         max_reaper_attempts=get_env("MAX_REAPER_ATTEMPTS", yaml_data.get("max_reaper_attempts", 3)),
         isclose_rel_tol=get_env("ISCLOSE_REL_TOL", yaml_data.get("isclose_rel_tol", 1e-9)),
         isclose_abs_tol=get_env("ISCLOSE_ABS_TOL", yaml_data.get("isclose_abs_tol", 1e-12)),
         retention_days=get_env("RETENTION_DAYS", yaml_data.get("retention_days", 365)),
         stale_max_age_days=stale,
-        reject_reason_min_chars=get_env("REJECT_REASON_MIN_CHARS", yaml_data.get("reject_reason_min_chars", 10)),
-        reject_reason_max_chars=get_env("REJECT_REASON_MAX_CHARS", yaml_data.get("reject_reason_max_chars", 1000)),
+        reject_reason_min_chars=get_env(
+            "REJECT_REASON_MIN_CHARS", yaml_data.get("reject_reason_min_chars", 10)
+        ),
+        reject_reason_max_chars=get_env(
+            "REJECT_REASON_MAX_CHARS", yaml_data.get("reject_reason_max_chars", 1000)
+        ),
         rate_limit=rate_limit,
         task_time_limit=get_env("TASK_TIME_LIMIT", yaml_data.get("task_time_limit", 600)),
         retry_backoff_max=get_env("RETRY_BACKOFF_MAX", yaml_data.get("retry_backoff_max", 60)),
         max_retries=get_env("MAX_RETRIES", yaml_data.get("max_retries", 3)),
         heartbeat_interval=get_env("HEARTBEAT_INTERVAL", yaml_data.get("heartbeat_interval", 15)),
         visibility_timeout=get_env("VISIBILITY_TIMEOUT", yaml_data.get("visibility_timeout", 900)),
-        visibility_timeout_chaos=get_env("VISIBILITY_TIMEOUT_CHAOS", yaml_data.get("visibility_timeout_chaos", 30)),
-        mutations_per_class=get_env("MUTATIONS_PER_CLASS", yaml_data.get("mutations_per_class", 30)),
-        clean_reports_for_fp=get_env("CLEAN_REPORTS_FOR_FP", yaml_data.get("clean_reports_for_fp", 50)),
+        visibility_timeout_chaos=get_env(
+            "VISIBILITY_TIMEOUT_CHAOS", yaml_data.get("visibility_timeout_chaos", 30)
+        ),
+        mutations_per_class=get_env(
+            "MUTATIONS_PER_CLASS", yaml_data.get("mutations_per_class", 30)
+        ),
+        clean_reports_for_fp=get_env(
+            "CLEAN_REPORTS_FOR_FP", yaml_data.get("clean_reports_for_fp", 50)
+        ),
         coverage_min=get_env("COVERAGE_MIN", yaml_data.get("coverage_min", 85)),
         sampler_rate_prod=get_env("SAMPLER_RATE_PROD", yaml_data.get("sampler_rate_prod", 0.1)),
-        alert_failure_rate_pct=get_env("ALERT_FAILURE_RATE_PCT", yaml_data.get("alert_failure_rate_pct", 5)),
-        alert_queue_pending=get_env("ALERT_QUEUE_PENDING", yaml_data.get("alert_queue_pending", 100)),
-        alert_worker_offline_min=get_env("ALERT_WORKER_OFFLINE_MIN", yaml_data.get("alert_worker_offline_min", 2)),
+        alert_failure_rate_pct=get_env(
+            "ALERT_FAILURE_RATE_PCT", yaml_data.get("alert_failure_rate_pct", 5)
+        ),
+        alert_queue_pending=get_env(
+            "ALERT_QUEUE_PENDING", yaml_data.get("alert_queue_pending", 100)
+        ),
+        alert_worker_offline_min=get_env(
+            "ALERT_WORKER_OFFLINE_MIN", yaml_data.get("alert_worker_offline_min", 2)
+        ),
         database_url=settings.DATABASE_URL,
         app_env=settings.APP_ENV,
         allow_simulated_publication=settings.ALLOW_SIMULATED_PUBLICATION,

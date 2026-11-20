@@ -17,6 +17,7 @@ from datetime import datetime
 # Domain Models (tipos que o domínio conhece)
 # ============================================================================
 
+
 @dataclass
 class TaskRecord:
     task_id: uuid.UUID
@@ -79,6 +80,7 @@ class IdempotencyKeyRecord:
 # ============================================================================
 # Repository Interfaces (Protocolos/ABCs) - CONTRATOS DO DOMÍNIO
 # ============================================================================
+
 
 class TasksRepo(ABC):
     @abstractmethod
@@ -148,6 +150,7 @@ class IdempotencyRepo(ABC):
 # Unit of Work abstrata e Container de Repositórios
 # ============================================================================
 
+
 @dataclass
 class Repositories:
     tasks: TasksRepo
@@ -167,6 +170,7 @@ class UnitOfWork(ABC):
             uow.events.append(...)
             uow.commit()
     """
+
     tasks: TasksRepo
     market: MarketRepo
     quant: QuantRepo

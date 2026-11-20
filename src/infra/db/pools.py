@@ -128,7 +128,6 @@ def _build_dsn() -> str:
     return cfg.database_url
 
 
-
 def init_api_pools() -> None:
     """Inicializa pool da API (síncrono). Chamado no startup da API."""
     global _pool_api
@@ -263,7 +262,9 @@ def _translate_db_error(exc: Exception, conn: psycopg.Connection | None = None) 
         # 08P01 (protocol_violation) é violação de protocolo (bug/incompatibilidade);
         # não adianta retry, deve ser PermanentError mesmo iniciando com 08.
         if sqlstate_str == "08P01":
-            err_proto = PermanentError(f"Erro permanente de protocolo (SQLSTATE {sqlstate_str}): {exc}")
+            err_proto = PermanentError(
+                f"Erro permanente de protocolo (SQLSTATE {sqlstate_str}): {exc}"
+            )
             err_proto.__cause__ = exc
             return err_proto
 
@@ -273,11 +274,19 @@ def _translate_db_error(exc: Exception, conn: psycopg.Connection | None = None) 
         # - Query cancelada: 57014 (query_canceled, ex: statement_timeout)
         # - Sobrecarga de recursos / conexões: 53300 (too_many_connections), 53200 (out_of_memory)
         # - Deadlock e concorrência: 40P01 (deadlock_detected), 40001 (serialization_failure)
-        if (
-            sqlstate_str.startswith("08")
-            or sqlstate_str in {"57P01", "57P02", "57P03", "57014", "40P01", "40001", "53300", "53200"}
-        ):
-            err_trans = TransientError(f"Erro transitorio de conexao/concorrencia/recurso (SQLSTATE {sqlstate_str}): {exc}")
+        if sqlstate_str.startswith("08") or sqlstate_str in {
+            "57P01",
+            "57P02",
+            "57P03",
+            "57014",
+            "40P01",
+            "40001",
+            "53300",
+            "53200",
+        }:
+            err_trans = TransientError(
+                f"Erro transitorio de conexao/concorrencia/recurso (SQLSTATE {sqlstate_str}): {exc}"
+            )
             err_trans.__cause__ = exc
             return err_trans
 
@@ -296,13 +305,21 @@ def _translate_db_error(exc: Exception, conn: psycopg.Connection | None = None) 
             or sqlstate_str.startswith("22")
             or sqlstate_str.startswith("53")
         ):
-            err_perm = PermanentError(f"Erro permanente de autenticacao/config/dados (SQLSTATE {sqlstate_str}): {exc}")
+            err_perm = PermanentError(
+                f"Erro permanente de autenticacao/config/dados (SQLSTATE {sqlstate_str}): {exc}"
+            )
             err_perm.__cause__ = exc
             return err_perm
 
     # Se a conexão foi fechada/quebrada durante a operação (InterfaceError/OperationalError sem sqlstate específico)
-    if isinstance(exc, psycopg.Error) and conn is not None and (conn.closed or getattr(conn, "broken", False)):
-        err_conn_lost = TransientError(f"Erro transitorio: conexao perdida/fechada durante operacao: {exc}")
+    if (
+        isinstance(exc, psycopg.Error)
+        and conn is not None
+        and (conn.closed or getattr(conn, "broken", False))
+    ):
+        err_conn_lost = TransientError(
+            f"Erro transitorio: conexao perdida/fechada durante operacao: {exc}"
+        )
         err_conn_lost.__cause__ = exc
         return err_conn_lost
 

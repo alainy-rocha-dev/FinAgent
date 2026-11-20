@@ -3,7 +3,7 @@ Testes unitários para o DataCollectorAgent e a camada de ingestão de dados / m
 """
 
 import pytest
-from sisanalisefinanceira.models import MarketDataPayload
+
 from sisanalisefinanceira.agents.data_collector import DataCollectorAgent
 
 
@@ -35,4 +35,6 @@ def test_mock_fetch_unknown_symbol_uses_default(collector):
 
 def test_mock_fallback_includes_fallback_reason(collector):
     payload = collector.fetch_data("AAPL")
-    assert "fallback_reason" not in payload.metadata or payload.metadata.get("fallback_reason") is None
+    assert (
+        "fallback_reason" not in payload.metadata or payload.metadata.get("fallback_reason") is None
+    )

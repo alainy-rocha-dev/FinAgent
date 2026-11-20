@@ -32,6 +32,7 @@ from src.infra.db.pools import get_domain_connection
 # Implementações PostgreSQL
 # ============================================================================
 
+
 class PgTasksRepo(TasksRepo):
     def create(self, task: TaskRecord) -> None:
         with get_domain_connection() as conn:
@@ -295,6 +296,7 @@ class PgIdempotencyRepo(IdempotencyRepo):
 # ============================================================================
 # Factory para injeção de dependência
 # ============================================================================
+
 
 def create_repositories() -> Repositories:
     """Factory que cria todas as implementações PostgreSQL."""
